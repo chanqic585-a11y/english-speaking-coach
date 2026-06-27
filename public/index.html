@@ -1,0 +1,93 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>English Speaking Coach</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Daily speaking workspace</p>
+        <h1>English Speaking Coach</h1>
+      </div>
+      <div class="status-pill" id="apiStatus">Checking API key</div>
+    </header>
+
+    <section class="dashboard" aria-label="Daily practice dashboard">
+      <aside class="rail" aria-label="Training steps">
+        <div class="today-card">
+          <span class="label">Today</span>
+          <h2 id="todayFocus">Loading...</h2>
+          <p id="todayTopic">Preparing your session</p>
+        </div>
+        <ol class="steps" id="steps">
+          <li class="active"><span>1</span><div><strong>Warm-up</strong><small>3 min</small></div></li>
+          <li><span>2</span><div><strong>Speak</strong><small>8 min</small></div></li>
+          <li><span>3</span><div><strong>AI feedback</strong><small>6 min</small></div></li>
+          <li><span>4</span><div><strong>Repeat better</strong><small>7 min</small></div></li>
+          <li><span>5</span><div><strong>Reflection</strong><small>4 min</small></div></li>
+        </ol>
+        <div class="timer-box">
+          <span class="label">Timer</span>
+          <div class="timer" id="timer">30:00</div>
+          <div class="timer-actions">
+            <button type="button" class="icon-button" id="startTimer" title="Start timer">Start</button>
+            <button type="button" class="icon-button" id="pauseTimer" title="Pause timer">Pause</button>
+            <button type="button" class="icon-button" id="resetTimer" title="Reset timer">Reset</button>
+          </div>
+        </div>
+      </aside>
+
+      <section class="panel practice-panel" aria-label="Practice workspace">
+        <div class="panel-header">
+          <span class="label">Practice</span>
+          <button type="button" class="secondary-button" id="loadTopic">New topic</button>
+        </div>
+        <div class="prompt-block">
+          <h2 id="promptText">Loading today's prompt...</h2>
+          <p class="sentence-frame" id="sentenceFrame"></p>
+        </div>
+        <div class="phrase-bank" id="phraseBank" aria-label="Phrase bank"></div>
+        <label class="field-label" for="answerInput">Your spoken answer or transcript</label>
+        <textarea id="answerInput" rows="12" placeholder="Speak first. Then type or paste what you said here..."></textarea>
+        <div class="practice-actions">
+          <button type="button" class="primary-button" id="requestFeedback">Send for AI feedback</button>
+          <button type="button" class="secondary-button" id="clearAnswer">Clear</button>
+        </div>
+      </section>
+
+      <section class="panel feedback-panel" aria-label="AI feedback workspace">
+        <div class="panel-header">
+          <span class="label">AI feedback</span>
+          <span class="muted" id="feedbackState">Waiting for your answer</span>
+        </div>
+        <div class="feedback-content" id="feedbackContent">
+          <div class="empty-state">
+            <h2>Upgrade your answer</h2>
+            <p>After you submit, this panel will show grammar fixes, logic notes, a natural version, and a repeat script.</p>
+          </div>
+        </div>
+        <div class="reflection-box">
+          <span class="label">Reflection</span>
+          <input id="grammarNote" placeholder="One grammar point to remember">
+          <input id="logicNote" placeholder="One logic point to remember">
+          <input id="expressionNote" placeholder="One reusable expression">
+          <button type="button" class="primary-button" id="saveSession">Save today's review</button>
+        </div>
+      </section>
+    </section>
+
+    <section class="history-section" aria-label="Saved sessions">
+      <div class="panel-header">
+        <span class="label">Recent sessions</span>
+        <button type="button" class="secondary-button" id="refreshHistory">Refresh</button>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

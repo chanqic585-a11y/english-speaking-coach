@@ -1,0 +1,14 @@
+﻿{
+  "name": "english-speaking-coach",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local daily English speaking coach with AI text feedback.",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node server.js --check"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

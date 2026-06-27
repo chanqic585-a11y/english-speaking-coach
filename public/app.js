@@ -98,6 +98,56 @@ function renderFeedbackError(error) {
   elements.feedbackContent.innerHTML = card('Setup or request issue', `<p>${escapeHtml(error.message)}</p>${details}`);
 }
 
+function buildFreeFeedbackPrompt(answer) {
+  const topic = state.topic || {};
+  return [
+    'You are my English speaking coach.',
+    'I am a Chinese learner living in Mexico. I can understand some English, but I need help with spoken grammar, logic, and natural expression.',
+    '',
+    'Please review my answer for speaking practice.',
+    '',
+    `Focus: ${topic.focus || 'Speaking clarity'}`,
+    `Topic: ${topic.topic || 'Daily English speaking practice'}`,
+    `Question: ${topic.prompt || 'Please review my answer.'}`,
+    `Sentence frame: ${topic.sentenceFrame || 'No sentence frame provided.'}`,
+    '',
+    'My answer:',
+    answer,
+    '',
+    'Please give feedback in this exact structure:',
+    '1. Quick diagnosis: explain my main problem in Chinese.',
+    '2. Grammar fixes: show 2-4 important corrections. For each one, show my original sentence, an improved sentence, and a short Chinese explanation.',
+    '3. Logic and coherence: tell me how to organize my answer more clearly.',
+    '4. Natural version: rewrite my answer in natural spoken English, but keep it close to my level and meaning.',
+    '5. Repeat script: give me a shorter version that I can say aloud again.',
+    '6. Reusable expressions: give me 3-5 phrases I can reuse in future conversations.'
+  ].join('\n');
+}
+
+async function copyFreePrompt() {
+  const answer = elements.answerInput.value.trim();
+  if (answer.length < 20) {
+    renderFeedbackError(new Error('Please enter a longer answer before copying a free feedback prompt.'));
+    return;
+  }
+
+  const prompt = buildFreeFeedbackPrompt(answer);
+  try {
+    await navigator.clipboard.writeText(prompt);
+    elements.feedbackState.textContent = 'Free prompt copied';
+    elements.feedbackContent.innerHTML = card(
+      'Free mode prompt copied',
+      '<p>Now open ChatGPT, paste the prompt, and send it. After you get feedback, copy the useful grammar point, logic point, and expression into the reflection fields.</p>'
+    );
+  } catch {
+    elements.feedbackState.textContent = 'Manual copy needed';
+    elements.feedbackContent.innerHTML = card(
+      'Copy this prompt manually',
+      `<p>Your browser blocked automatic clipboard access. Select and copy the prompt below:</p><pre>${escapeHtml(prompt)}</pre>`
+    );
+  }
+}
+
 function card(title, body) {
   return `<article class="feedback-card"><h3>${title}</h3>${body.startsWith('<') ? body : `<p>${body}</p>`}</article>`;
 }
@@ -204,6 +254,7 @@ async function loadHistory() {
 }
 
 document.querySelector('#requestFeedback').addEventListener('click', requestFeedback);
+document.querySelector('#copyFreePrompt').addEventListener('click', copyFreePrompt);
 document.querySelector('#saveSession').addEventListener('click', saveSession);
 document.querySelector('#refreshHistory').addEventListener('click', loadHistory);
 document.querySelector('#clearAnswer').addEventListener('click', () => { elements.answerInput.value = ''; });

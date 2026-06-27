@@ -22,6 +22,20 @@ http://localhost:4173
 
 The app still opens, shows topics, runs the timer, and saves sessions. AI feedback will show setup guidance until `OPENAI_API_KEY` is configured.
 
+## Free mode
+
+If you do not want to use an API key, write your answer and click `Copy free feedback prompt`.
+
+Then:
+
+1. Open ChatGPT in your browser.
+2. Paste the copied prompt.
+3. Send it to ChatGPT.
+4. Copy the useful grammar point, logic point, and expression back into the reflection fields.
+5. Click `Save today's review`.
+
+This mode costs nothing in the app, but the feedback is manual instead of automatic.
+
 ## Files
 
 - `server.js` - local Node backend and static file server.

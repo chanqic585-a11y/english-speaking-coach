@@ -225,10 +225,14 @@ function recordingFilePath(recording) {
 }
 
 function speechMetrics(answer, recording) {
-  const words = String(answer || '').trim().split(/\s+/).filter(Boolean).length;
+  const text = String(answer || '').trim();
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const fillerMatches = text.match(/\b(um+|uh+|erm+|ah+|like|you know)\b/gi) || [];
+  const sentenceCount = Math.max(1, (text.match(/[.!?]+/g) || []).length);
   const durationSeconds = Number(recording?.durationSeconds || 0);
   const wordsPerMinute = durationSeconds > 0 ? Math.round((words / durationSeconds) * 60) : null;
-  return { words, durationSeconds, wordsPerMinute };
+  const averageWordsPerSentence = Math.round(words / sentenceCount);
+  return { words, durationSeconds, wordsPerMinute, fillerCount: fillerMatches.length, averageWordsPerSentence };
 }
 
 function localDateOffset(days) {
@@ -308,8 +312,8 @@ function buildFeedbackPrompt(answer, context, recording = null) {
   const metrics = speechMetrics(answer, recording);
   const transcript = String(answer || '').trim() || '[No transcript was captured. Please listen to the attached audio and infer the spoken answer as accurately as possible.]';
   const audioNote = recording
-    ? `Audio is attached. Recording duration: ${metrics.durationSeconds} seconds. Transcript word count: ${metrics.words}. Estimated speed: ${metrics.wordsPerMinute || 'unknown'} WPM.`
-    : 'No audio is attached. Set pronunciationScore and fluencyScore to null, and explain that audio is needed for pronunciation assessment.';
+    ? `Audio is attached. Recording duration: ${metrics.durationSeconds} seconds. Transcript word count: ${metrics.words}. Estimated speed: ${metrics.wordsPerMinute || 'unknown'} WPM. Filler count from transcript: ${metrics.fillerCount}.`
+    : `No audio is attached. Use text-only estimation for fluency, speakingSpeed, pauseProblem, and hardWordsToRepeat. Set pronunciationScore to null and clearly mark pronunciation as "audio needed". Transcript word count: ${metrics.words}. Average sentence length: ${metrics.averageWordsPerSentence}. Filler count: ${metrics.fillerCount}.`;
 
   return `You are an English speaking coach for a Chinese learner living in Mexico. The learner can understand intermediate English but needs better spoken grammar, logic, pronunciation, fluency, and natural phrasing.
 
@@ -336,14 +340,94 @@ pronunciationScore: number|null
 fluencyScore: number|null
 speedPauseFeedback: string
 possiblePronunciationIssues: array of {word:string, issue:string, suggestion:string}
+pauseProblem: string
+speakingSpeed: {wpm:number|null, level:string, comment:string}
+hardWordsToRepeat: array of {word:string, reason:string, repeatDrill:string}
 
 Scoring rules:
 - pronunciationScore is 0-100 and should only be scored when audio is attached.
-- fluencyScore is 0-100 and should consider speed, hesitation, pauses, and smoothness when audio is attached.
-- speedPauseFeedback should mention pace and pauses; if audio is missing, use transcript-length only and say the limitation.
-- possiblePronunciationIssues should identify words or sounds that may need practice from the audio. Be cautious and say "possible" when uncertain.
+- fluencyScore is 0-100. If audio is attached, consider speed, hesitation, pauses, and smoothness. If audio is missing, estimate from transcript length, filler words, sentence length, and organization, and say it is a text estimate.
+- speedPauseFeedback should mention pace and pauses; keep it compatible with old clients.
+- pauseProblem should be one clear Chinese sentence about pauses or hesitation. If audio is missing, infer only from transcript markers such as fillers, broken sentences, very short answers, or very long sentences.
+- speakingSpeed.wpm should use the provided WPM when audio duration exists. Without audio, set wpm to null and set level to "text estimate only".
+- speakingSpeed.level should be one of: "too slow", "natural", "too fast", "text estimate only", "unknown".
+- hardWordsToRepeat should include 3-6 English words or short phrases from the learner's answer or naturalVersion that are useful or likely hard to say. Each repeatDrill should be a short English drill, such as "international communication - international communication - international communication".
+- possiblePronunciationIssues should identify words or sounds that may need practice from the audio. If audio is missing, keep this empty or mark items as text-based possibilities. Be cautious and say "possible" when uncertain.
 
 Use Chinese for explanations and English for improved sentences. Limit grammarFixes to 2-4 important corrections. Keep the natural version close to the user's meaning and level.`;
+}
+
+function speedLevel(wordsPerMinute) {
+  if (!wordsPerMinute) return 'text estimate only';
+  if (wordsPerMinute < 90) return 'too slow';
+  if (wordsPerMinute > 170) return 'too fast';
+  return 'natural';
+}
+
+function estimateFluencyScore(metrics, hasAudio) {
+  let score = hasAudio ? 70 : 62;
+  if (metrics.words >= 45) score += 8;
+  if (metrics.words < 20) score -= 14;
+  if (metrics.fillerCount > 0) score -= Math.min(16, metrics.fillerCount * 4);
+  if (metrics.averageWordsPerSentence > 28) score -= 8;
+  if (metrics.wordsPerMinute) {
+    if (metrics.wordsPerMinute >= 100 && metrics.wordsPerMinute <= 160) score += 8;
+    if (metrics.wordsPerMinute < 80 || metrics.wordsPerMinute > 185) score -= 10;
+  }
+  return Math.max(0, Math.min(100, score));
+}
+
+function fallbackHardWords(answer, feedback) {
+  const source = `${answer || ''} ${feedback.naturalVersion || ''}`;
+  const words = source.match(/\b[A-Za-z][A-Za-z'-]{5,}\b/g) || [];
+  const unique = [];
+  for (const word of words) {
+    const clean = word.replace(/^['-]+|['-]+$/g, '');
+    if (!clean || unique.some(item => item.toLowerCase() === clean.toLowerCase())) continue;
+    unique.push(clean);
+    if (unique.length >= 5) break;
+  }
+  return unique.map(word => ({
+    word,
+    reason: '这个词较长或在口语里需要说清楚，适合单独重复。',
+    repeatDrill: `${word} - ${word} - ${word}`
+  }));
+}
+
+function enrichFeedbackResult(feedback, answer, recording = null) {
+  if (!feedback || typeof feedback !== 'object' || feedback.rawText || feedback.rawResponse) return feedback;
+  const metrics = speechMetrics(answer, recording);
+  const hasAudio = Boolean(recording);
+
+  if (feedback.fluencyScore == null) {
+    feedback.fluencyScore = estimateFluencyScore(metrics, hasAudio);
+  }
+  if (!feedback.pauseProblem) {
+    feedback.pauseProblem = hasAudio
+      ? '请结合录音检查是否有明显停顿；本次没有返回更具体的停顿问题。'
+      : metrics.fillerCount > 0
+        ? '文本里出现了一些 filler words，可能说明表达时有停顿或犹豫。'
+        : 'Text estimate only：没有录音时，只能根据文本长度和句子结构粗略判断停顿。';
+  }
+  if (!feedback.speakingSpeed || typeof feedback.speakingSpeed !== 'object') {
+    feedback.speakingSpeed = {
+      wpm: metrics.wordsPerMinute,
+      level: hasAudio ? speedLevel(metrics.wordsPerMinute) : 'text estimate only',
+      comment: hasAudio
+        ? `Estimated speed is ${metrics.wordsPerMinute || 'unknown'} WPM based on the saved recording.`
+        : 'Text estimate only：没有录音时无法计算真实 WPM，可以先用回答长度和流畅度做粗略判断。'
+    };
+  }
+  if (!Array.isArray(feedback.hardWordsToRepeat) || !feedback.hardWordsToRepeat.length) {
+    feedback.hardWordsToRepeat = fallbackHardWords(answer, feedback);
+  }
+  if (!feedback.speedPauseFeedback) {
+    feedback.speedPauseFeedback = `${feedback.pauseProblem} ${feedback.speakingSpeed?.comment || ''}`.trim();
+  }
+  if (!Array.isArray(feedback.possiblePronunciationIssues)) {
+    feedback.possiblePronunciationIssues = [];
+  }
+  return feedback;
 }
 
 async function requestAiFeedback(answer, context, recording = null) {
@@ -1111,7 +1195,7 @@ async function handleApi(req, res) {
       return;
     }
     try {
-      const feedback = await requestAiFeedback(answer, context, recording);
+      const feedback = enrichFeedbackResult(await requestAiFeedback(answer, context, recording), answer, recording);
       sendJson(res, 200, { feedback });
     } catch (error) {
       sendJson(res, error.code === 'missing_api_key' ? 400 : 502, {

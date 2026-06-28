@@ -76,7 +76,7 @@ Use the `Speaking recorder` inside the practice panel:
 
 The app saves the audio locally under `data/recordings/` and places the transcript into the answer box when browser speech recognition is available. Feedback is not submitted automatically after recording, so you can correct the transcript before Gemini reviews it.
 
-AI feedback opens in a dialog automatically. The dialog shows request progress first, then highlights pronunciation score, fluency score, and the repeat script before the detailed grammar and logic notes.
+AI feedback opens in a dialog automatically. The dialog shows request progress first, then highlights pronunciation, fluency, speaking speed, and the repeat script before the detailed grammar and logic notes.
 
 After feedback is ready, the dialog automatically starts a short `Follow-up practice` loop. Gemini asks one follow-up question based on your answer and feedback, you answer in English, and Gemini gives a light correction plus the next question. The loop stops after 2-3 rounds with a short closing summary.
 
@@ -84,8 +84,12 @@ When Gemini feedback is enabled, recorded sessions also send the saved audio to 
 
 - pronunciation score
 - fluency score
-- speed and pause feedback
+- pause problem
+- speaking speed
+- hard words to repeat
 - possible words or sounds to practice
+
+Without audio, the app still gives a text-only estimate for fluency, pause problem, speaking speed, and hard words to repeat. Pronunciation scoring still needs audio.
 
 Recording uses the browser MediaRecorder API. Live transcription uses browser SpeechRecognition when available, so support varies by browser. The public HTTPS tunnel generally works better for microphone and speech recognition permissions than plain local network links on some phones.
 

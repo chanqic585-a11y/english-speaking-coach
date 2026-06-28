@@ -151,6 +151,13 @@ function scoreValue(value) {
   return value ?? 'Audio needed';
 }
 
+function speedLabel(speed) {
+  if (!speed || typeof speed !== 'object') return 'Unknown';
+  const level = speed.level || 'unknown';
+  const wpm = speed.wpm == null ? '' : ` (${speed.wpm} WPM)`;
+  return `${level}${wpm}`;
+}
+
 function buildFeedbackDetails(feedback) {
   if (feedback.rawText || feedback.rawResponse) {
     return card('Raw feedback', escapeHtml(feedback.rawText || JSON.stringify(feedback.rawResponse, null, 2)));
@@ -168,19 +175,27 @@ function buildFeedbackDetails(feedback) {
     ? `<ul>${feedback.reusableExpressions.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
     : '<p>No reusable expressions returned.</p>';
 
+  const speed = feedback.speakingSpeed || {};
   const speechScores = [
     `<p><strong>Pronunciation:</strong> ${scoreValue(feedback.pronunciationScore)}</p>`,
     `<p><strong>Fluency:</strong> ${scoreValue(feedback.fluencyScore)}</p>`,
-    `<p>${escapeHtml(feedback.speedPauseFeedback || 'No speed or pause feedback returned.')}</p>`
+    `<p><strong>Pause problem:</strong> ${escapeHtml(feedback.pauseProblem || feedback.speedPauseFeedback || 'No pause feedback returned.')}</p>`,
+    `<p><strong>Speaking speed:</strong> ${escapeHtml(speedLabel(speed))}</p>`,
+    `<p>${escapeHtml(speed.comment || feedback.speedPauseFeedback || 'No speed comment returned.')}</p>`
   ].join('');
 
   const pronunciationIssues = Array.isArray(feedback.possiblePronunciationIssues) && feedback.possiblePronunciationIssues.length
     ? `<ul>${feedback.possiblePronunciationIssues.map(item => `<li><strong>${escapeHtml(item.word || '')}</strong><br><span>${escapeHtml(item.issue || '')}</span><br><span>${escapeHtml(item.suggestion || '')}</span></li>`).join('')}</ul>`
     : '<p>No specific pronunciation issues returned.</p>';
 
+  const hardWords = Array.isArray(feedback.hardWordsToRepeat) && feedback.hardWordsToRepeat.length
+    ? `<ul>${feedback.hardWordsToRepeat.map(item => `<li><strong>${escapeHtml(item.word || '')}</strong><br><span>${escapeHtml(item.reason || '')}</span><br><span>${escapeHtml(item.repeatDrill || '')}</span></li>`).join('')}</ul>`
+    : '<p>No hard words returned yet.</p>';
+
   return [
     card('Quick diagnosis', escapeHtml(feedback.quickDiagnosis || 'No quick diagnosis returned.')),
-    card('Pronunciation and fluency', speechScores),
+    card('Pronunciation, fluency, pause, speed', speechScores),
+    card('Hard words to repeat', hardWords),
     card('Possible pronunciation issues', pronunciationIssues),
     card('Grammar fixes', grammar),
     card('Logic and coherence', logic),
@@ -198,6 +213,7 @@ function renderFeedbackSummary(feedback) {
   return [
     `<div class="score-card"><span>Pronunciation</span><strong>${scoreValue(feedback.pronunciationScore)}</strong></div>`,
     `<div class="score-card"><span>Fluency</span><strong>${scoreValue(feedback.fluencyScore)}</strong></div>`,
+    `<div class="score-card speed-card"><span>Speed</span><strong>${escapeHtml(speedLabel(feedback.speakingSpeed))}</strong></div>`,
     `<div class="summary-card wide"><strong>Repeat script</strong><p>${escapeHtml(feedback.repeatScript || feedback.naturalVersion || 'No repeat script returned yet.')}</p></div>`
   ].join('');
 }

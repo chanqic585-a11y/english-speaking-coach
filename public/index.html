@@ -93,6 +93,30 @@
       </section>
     </section>
 
+    <section class="vocabulary-section" aria-label="Vocabulary practice">
+      <div class="panel-header">
+        <span class="label">Vocabulary</span>
+        <span class="muted" id="vocabCount">Loading words</span>
+      </div>
+      <div class="vocabulary-grid">
+        <form class="vocab-form" id="vocabForm">
+          <input id="vocabTerm" placeholder="Word or phrase">
+          <input id="vocabMeaning" placeholder="Chinese meaning">
+          <input id="vocabExample" placeholder="Speaking example sentence">
+          <input id="vocabTag" placeholder="Tag, e.g. Mexico / IELTS / daily">
+          <button type="submit" class="primary-button">Add to vocabulary</button>
+        </form>
+        <div class="review-box">
+          <div class="panel-header compact">
+            <span class="label">Today's review</span>
+            <button type="button" class="secondary-button" id="refreshVocabulary">Refresh</button>
+          </div>
+          <div class="review-list" id="reviewList"></div>
+        </div>
+        <div class="word-bank" id="wordBank"></div>
+      </div>
+    </section>
+
     <section class="history-section" aria-label="Saved sessions">
       <div class="panel-header">
         <span class="label">Recent sessions</span>

@@ -60,6 +60,17 @@ Then:
 
 This mode costs nothing in the app, but the feedback is manual instead of automatic.
 
+## Vocabulary practice
+
+Use the `Vocabulary` section to save words and phrases from your speaking practice.
+
+- Add the English word or phrase.
+- Add the Chinese meaning.
+- Add a speaking example sentence.
+- Review due cards with `Again`, `Good`, or `Mastered`.
+
+Vocabulary is saved locally in `data/vocabulary.json`. The review schedule is intentionally simple: difficult words come back soon, useful words return after a few days, and mastered words return later.
+
 ## Files
 
 - `server.js` - local Node backend and static file server.

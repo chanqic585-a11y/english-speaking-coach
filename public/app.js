@@ -21,7 +21,15 @@ const elements = {
   historyList: document.querySelector('#historyList'),
   timer: document.querySelector('#timer'),
   phoneUrl: document.querySelector('#phoneUrl'),
-  copyPhoneUrl: document.querySelector('#copyPhoneUrl')
+  copyPhoneUrl: document.querySelector('#copyPhoneUrl'),
+  vocabForm: document.querySelector('#vocabForm'),
+  vocabTerm: document.querySelector('#vocabTerm'),
+  vocabMeaning: document.querySelector('#vocabMeaning'),
+  vocabExample: document.querySelector('#vocabExample'),
+  vocabTag: document.querySelector('#vocabTag'),
+  vocabCount: document.querySelector('#vocabCount'),
+  reviewList: document.querySelector('#reviewList'),
+  wordBank: document.querySelector('#wordBank')
 };
 
 async function api(path, options = {}) {
@@ -177,6 +185,89 @@ async function copyPhoneUrl() {
   }
 }
 
+function statusLabel(status) {
+  return {
+    new: 'New',
+    learning: 'Learning',
+    familiar: 'Familiar',
+    mastered: 'Mastered'
+  }[status] || 'New';
+}
+
+function renderVocabulary(items, reviewItems) {
+  elements.vocabCount.textContent = `${items.length} saved`;
+
+  if (!reviewItems.length) {
+    elements.reviewList.innerHTML = '<p class="muted">No words due today. Add a new phrase from your speaking practice.</p>';
+  } else {
+    elements.reviewList.innerHTML = reviewItems.map(item => `
+      <article class="review-card">
+        <div>
+          <strong>${escapeHtml(item.term)}</strong>
+          <p>${escapeHtml(item.meaning)}</p>
+          ${item.example ? `<small>${escapeHtml(item.example)}</small>` : ''}
+        </div>
+        <div class="review-actions">
+          <button type="button" class="secondary-button" data-review="${escapeHtml(item.id)}" data-result="again">Again</button>
+          <button type="button" class="secondary-button" data-review="${escapeHtml(item.id)}" data-result="good">Good</button>
+          <button type="button" class="primary-button" data-review="${escapeHtml(item.id)}" data-result="mastered">Mastered</button>
+        </div>
+      </article>
+    `).join('');
+  }
+
+  if (!items.length) {
+    elements.wordBank.innerHTML = '<p class="muted">Your vocabulary book is empty.</p>';
+    return;
+  }
+
+  elements.wordBank.innerHTML = items.slice(0, 12).map(item => `
+    <article class="word-item">
+      <div>
+        <strong>${escapeHtml(item.term)}</strong>
+        <p>${escapeHtml(item.meaning)}</p>
+        ${item.example ? `<small>${escapeHtml(item.example)}</small>` : ''}
+      </div>
+      <div>
+        <span class="word-status">${statusLabel(item.status)}</span>
+        <small>${escapeHtml(item.tag || 'speaking')}</small>
+      </div>
+    </article>
+  `).join('');
+}
+
+async function loadVocabulary() {
+  const [all, review] = await Promise.all([api('/api/vocabulary'), api('/api/vocabulary/review')]);
+  renderVocabulary(all.items || [], review.items || []);
+}
+
+async function addVocabulary(event) {
+  event.preventDefault();
+  const payload = {
+    term: elements.vocabTerm.value.trim(),
+    meaning: elements.vocabMeaning.value.trim(),
+    example: elements.vocabExample.value.trim(),
+    tag: elements.vocabTag.value.trim()
+  };
+  if (!payload.term || !payload.meaning) {
+    elements.vocabCount.textContent = 'Term and meaning required';
+    return;
+  }
+  await api('/api/vocabulary', { method: 'POST', body: JSON.stringify(payload) });
+  elements.vocabForm.reset();
+  await loadVocabulary();
+}
+
+async function reviewVocabulary(event) {
+  const button = event.target.closest('[data-review]');
+  if (!button) return;
+  await api(`/api/vocabulary/${button.dataset.review}/review`, {
+    method: 'POST',
+    body: JSON.stringify({ result: button.dataset.result })
+  });
+  await loadVocabulary();
+}
+
 function card(title, body) {
   return `<article class="feedback-card"><h3>${title}</h3>${body.startsWith('<') ? body : `<p>${body}</p>`}</article>`;
 }
@@ -216,6 +307,7 @@ async function loadInitialData() {
   renderSettings(settings);
   renderTopic(topic);
   await renderNetworkInfo();
+  await loadVocabulary();
   await loadHistory();
 }
 
@@ -288,6 +380,9 @@ document.querySelector('#copyFreePrompt').addEventListener('click', copyFreeProm
 elements.copyPhoneUrl.addEventListener('click', copyPhoneUrl);
 document.querySelector('#saveSession').addEventListener('click', saveSession);
 document.querySelector('#refreshHistory').addEventListener('click', loadHistory);
+document.querySelector('#refreshVocabulary').addEventListener('click', loadVocabulary);
+elements.vocabForm.addEventListener('submit', addVocabulary);
+elements.reviewList.addEventListener('click', reviewVocabulary);
 document.querySelector('#clearAnswer').addEventListener('click', () => { elements.answerInput.value = ''; });
 document.querySelector('#loadTopic').addEventListener('click', async () => renderTopic(await api('/api/today')));
 document.querySelector('#startTimer').addEventListener('click', startTimer);

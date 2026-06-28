@@ -8,6 +8,7 @@ const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+const VOCABULARY_FILE = path.join(DATA_DIR, 'vocabulary.json');
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 
@@ -67,6 +68,7 @@ function loadEnv() {
 function ensureData() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(SESSIONS_FILE)) fs.writeFileSync(SESSIONS_FILE, '[]\n', 'utf8');
+  if (!fs.existsSync(VOCABULARY_FILE)) fs.writeFileSync(VOCABULARY_FILE, '[]\n', 'utf8');
 }
 
 function sendJson(res, status, payload) {
@@ -118,6 +120,58 @@ function readSessions() {
 function writeSessions(sessions) {
   ensureData();
   fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2) + '\n', 'utf8');
+}
+
+function readVocabulary() {
+  ensureData();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(VOCABULARY_FILE, 'utf8'));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeVocabulary(items) {
+  ensureData();
+  fs.writeFileSync(VOCABULARY_FILE, JSON.stringify(items, null, 2) + '\n', 'utf8');
+}
+
+function localDateOffset(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return year + '-' + month + '-' + day;
+}
+
+function normalizeVocabularyPayload(payload) {
+  return {
+    term: String(payload.term || '').trim(),
+    meaning: String(payload.meaning || '').trim(),
+    example: String(payload.example || '').trim(),
+    tag: String(payload.tag || '').trim() || 'speaking',
+    status: ['new', 'learning', 'familiar', 'mastered'].includes(payload.status) ? payload.status : 'new'
+  };
+}
+
+function applyVocabularyReview(item, result) {
+  const reviewCount = Number(item.reviewCount || 0) + 1;
+  const schedule = {
+    again: { status: 'learning', days: 1 },
+    good: { status: reviewCount >= 2 ? 'familiar' : 'learning', days: reviewCount >= 2 ? 4 : 2 },
+    mastered: { status: 'mastered', days: 14 }
+  }[result] || { status: 'learning', days: 1 };
+
+  return {
+    ...item,
+    status: schedule.status,
+    reviewCount,
+    lastReviewedAt: new Date().toISOString(),
+    nextReviewAt: localDateOffset(schedule.days),
+    updatedAt: new Date().toISOString()
+  };
 }
 
 function todayTopic() {
@@ -254,6 +308,61 @@ async function handleApi(req, res) {
 
   if (req.method === 'GET' && url.pathname === '/api/today') {
     sendJson(res, 200, todayTopic());
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/vocabulary') {
+    const items = readVocabulary().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    sendJson(res, 200, { items });
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/vocabulary/review') {
+    const today = localDateOffset(0);
+    const items = readVocabulary()
+      .filter(item => item.status !== 'mastered' || String(item.nextReviewAt || '') <= today)
+      .filter(item => !item.nextReviewAt || String(item.nextReviewAt) <= today)
+      .sort((a, b) => String(a.nextReviewAt || '').localeCompare(String(b.nextReviewAt || '')))
+      .slice(0, 12);
+    sendJson(res, 200, { items });
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/vocabulary') {
+    const payload = normalizeVocabularyPayload(JSON.parse(await readBody(req) || '{}'));
+    if (!payload.term || !payload.meaning) {
+      sendJson(res, 400, { error: 'Term and meaning are required.' });
+      return;
+    }
+    const now = new Date().toISOString();
+    const items = readVocabulary();
+    const item = {
+      id: crypto.randomUUID(),
+      ...payload,
+      reviewCount: 0,
+      nextReviewAt: localDateOffset(0),
+      createdAt: now,
+      updatedAt: now
+    };
+    items.unshift(item);
+    writeVocabulary(items.slice(0, 500));
+    sendJson(res, 201, { item });
+    return;
+  }
+
+  const reviewMatch = url.pathname.match(/^\/api\/vocabulary\/([^/]+)\/review$/);
+  if (req.method === 'POST' && reviewMatch) {
+    const id = reviewMatch[1];
+    const payload = JSON.parse(await readBody(req) || '{}');
+    const items = readVocabulary();
+    const index = items.findIndex(item => item.id === id);
+    if (index === -1) {
+      sendJson(res, 404, { error: 'Vocabulary item not found.' });
+      return;
+    }
+    items[index] = applyVocabularyReview(items[index], payload.result);
+    writeVocabulary(items);
+    sendJson(res, 200, { item: items[index] });
     return;
   }
 

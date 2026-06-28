@@ -1,6 +1,6 @@
 ﻿# English Speaking Coach
 
-A local daily English speaking coach for a 25-30 minute practice session. It uses a Workspace Dashboard layout: training steps on the left, practice in the center, and AI feedback on the right.
+A local English speaking coach for self-paced practice. It uses a Workspace Dashboard layout: training steps on the left, practice in the center, AI feedback on the right, and an AI daily chat window for open-ended conversation practice.
 
 ## Run
 
@@ -44,7 +44,7 @@ Keep this computer awake while using the public link. The quick tunnel is tempor
 
 ## Without an API key
 
-The app still opens, shows topics, runs the timer, records speaking practice, and saves sessions. AI feedback will show setup guidance until `GEMINI_API_KEY` is configured.
+The app still opens, shows topics, records speaking practice, and saves sessions. AI feedback and AI daily chat will show setup guidance until `GEMINI_API_KEY` is configured.
 
 ## AI feedback provider
 
@@ -84,6 +84,17 @@ When Gemini feedback is enabled, recorded sessions also send the saved audio to 
 - possible words or sounds to practice
 
 Recording uses the browser MediaRecorder API. Live transcription uses browser SpeechRecognition when available, so support varies by browser. The public HTTPS tunnel generally works better for microphone and speech recognition permissions than plain local network links on some phones.
+
+## AI daily chat
+
+Click `AI Daily Chat` to open a self-paced conversation window.
+
+- Use `Text input` to type English.
+- Use `Voice input` to speak and let the browser turn your speech into text.
+- Use `Text output` to read the AI coach's reply.
+- Use `Voice output` to have the browser read the AI reply aloud for listening and shadowing practice.
+
+The AI coach chats naturally, gives light corrections, suggests a better way to say your sentence, and gives one short repeat line. Recent chat messages are saved in your browser local storage.
 
 ## Vocabulary practice
 

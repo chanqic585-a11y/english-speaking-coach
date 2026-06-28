@@ -13,7 +13,10 @@
         <p class="eyebrow">Daily speaking workspace</p>
         <h1>English Speaking Coach</h1>
       </div>
-      <div class="status-pill" id="apiStatus">Checking API key</div>
+      <div class="topbar-actions">
+        <button type="button" class="primary-button" id="openChat">AI Daily Chat</button>
+        <div class="status-pill" id="apiStatus">Checking API key</div>
+      </div>
     </header>
 
     <section class="phone-access" aria-label="Phone access">
@@ -32,21 +35,12 @@
           <p id="todayTopic">Preparing your session</p>
         </div>
         <ol class="steps" id="steps">
-          <li class="active"><span>1</span><div><strong>Warm-up</strong><small>3 min</small></div></li>
-          <li><span>2</span><div><strong>Speak</strong><small>8 min</small></div></li>
-          <li><span>3</span><div><strong>AI feedback</strong><small>6 min</small></div></li>
-          <li><span>4</span><div><strong>Repeat better</strong><small>7 min</small></div></li>
-          <li><span>5</span><div><strong>Reflection</strong><small>4 min</small></div></li>
+          <li class="active"><span>1</span><div><strong>Warm-up</strong><small>Choose a topic</small></div></li>
+          <li><span>2</span><div><strong>Speak</strong><small>Record or type</small></div></li>
+          <li><span>3</span><div><strong>AI feedback</strong><small>Improve expression</small></div></li>
+          <li><span>4</span><div><strong>Repeat better</strong><small>Practice aloud</small></div></li>
+          <li><span>5</span><div><strong>Free chat</strong><small>Talk as long as you want</small></div></li>
         </ol>
-        <div class="timer-box">
-          <span class="label">Timer</span>
-          <div class="timer" id="timer">30:00</div>
-          <div class="timer-actions">
-            <button type="button" class="icon-button" id="startTimer" title="Start timer">Start</button>
-            <button type="button" class="icon-button" id="pauseTimer" title="Pause timer">Pause</button>
-            <button type="button" class="icon-button" id="resetTimer" title="Reset timer">Reset</button>
-          </div>
-        </div>
       </aside>
 
       <section class="panel practice-panel" aria-label="Practice workspace">
@@ -115,6 +109,33 @@
         </div>
         <div class="modal-summary" id="feedbackModalSummary"></div>
         <div class="feedback-content modal-feedback-content" id="feedbackModalContent"></div>
+      </section>
+    </div>
+
+    <div class="chat-modal" id="chatModal" hidden role="dialog" aria-modal="true" aria-labelledby="chatModalTitle">
+      <button type="button" class="modal-backdrop" id="chatModalBackdrop" aria-label="Close AI chat"></button>
+      <section class="chat-panel" tabindex="-1">
+        <div class="modal-header">
+          <div>
+            <span class="label">Daily AI chat</span>
+            <h2 id="chatModalTitle">Practice natural English</h2>
+            <p class="muted" id="chatStatus">Chat with your coach. Use text or voice input, then listen or read the reply.</p>
+          </div>
+          <button type="button" class="secondary-button compact-button" id="closeChat">Close</button>
+        </div>
+        <div class="chat-toolbar">
+          <label><input type="radio" name="chatInputMode" value="text" checked> Text input</label>
+          <label><input type="radio" name="chatInputMode" value="voice"> Voice input</label>
+          <label><input type="radio" name="chatOutputMode" value="text" checked> Text output</label>
+          <label><input type="radio" name="chatOutputMode" value="voice"> Voice output</label>
+          <button type="button" class="secondary-button compact-button" id="clearChat">Clear chat</button>
+        </div>
+        <div class="chat-messages" id="chatMessages" aria-live="polite"></div>
+        <div class="chat-input-row">
+          <button type="button" class="secondary-button" id="chatMic">Speak</button>
+          <textarea id="chatInput" rows="3" placeholder="Type in English, or switch to Voice input and speak..."></textarea>
+          <button type="button" class="primary-button" id="sendChat">Send</button>
+        </div>
       </section>
     </div>
 

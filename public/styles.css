@@ -19,6 +19,7 @@ button { cursor: pointer; }
 .app-shell { width: min(1440px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 36px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .topbar h1 { margin: 2px 0 0; font-size: 28px; letter-spacing: 0; }
+.topbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 .eyebrow, .label { margin: 0; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0; }
 .status-pill { min-width: 144px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; text-align: center; background: var(--panel); color: var(--muted); font-size: 14px; }
 .status-pill.ready { color: var(--ok); border-color: #99f6e4; background: #ecfdf5; }
@@ -36,9 +37,7 @@ button { cursor: pointer; }
 .steps li.active { border-color: var(--accent); background: #eff6ff; }
 .steps span { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 50%; background: var(--panel); color: var(--accent); font-weight: 800; }
 .steps small { display: block; color: var(--muted); margin-top: 2px; }
-.timer-box { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
-.timer { font-size: 36px; font-weight: 800; margin: 8px 0; letter-spacing: 0; }
-.timer-actions, .practice-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.practice-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .panel { padding: 18px; min-height: 620px; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .panel-header.compact { margin-bottom: 10px; }
@@ -91,6 +90,19 @@ textarea:focus, input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px
 .progress-card.active span { background: #0f766e; color: #fff; }
 .progress-card strong { line-height: 1.25; }
 .modal-feedback-content { min-height: 0; overflow: auto; padding-right: 4px; }
+.chat-modal[hidden] { display: none; }
+.chat-modal { position: fixed; inset: 0; z-index: 35; display: grid; place-items: center; padding: 20px; }
+.chat-panel { position: relative; width: min(960px, 100%); height: min(86vh, 820px); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 12px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 28px 90px rgba(15, 23, 42, 0.28); padding: 18px; outline: none; }
+.chat-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.chat-toolbar label { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--panel-soft); border-radius: 8px; padding: 8px 10px; font-size: 14px; font-weight: 700; }
+.chat-toolbar input { width: auto; }
+.chat-messages { min-height: 0; overflow: auto; display: grid; align-content: start; gap: 10px; padding-right: 4px; }
+.chat-message { max-width: 82%; border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px; background: var(--panel-soft); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-message.user { justify-self: end; background: #eff6ff; border-color: #bfdbfe; }
+.chat-message.assistant { justify-self: start; background: #f0fdf4; border-color: #bbf7d0; }
+.chat-message.system { justify-self: center; max-width: 100%; color: var(--muted); background: #fff7ed; border-color: #fed7aa; }
+.chat-input-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: end; border-top: 1px solid var(--line); padding-top: 12px; }
+.chat-input-row textarea { min-height: 72px; max-height: 160px; }
 .reflection-box { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 10px; }
 .vocabulary-section { margin-top: 16px; padding: 18px; }
 .vocabulary-grid { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 16px; }
@@ -111,5 +123,5 @@ textarea:focus, input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px
 .history-item { display: grid; grid-template-columns: 140px 1fr; gap: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--panel-soft); }
 .history-item strong { display: block; margin-bottom: 4px; }
 .history-item p { margin: 0; color: var(--muted); line-height: 1.4; }
-@media (max-width: 1120px) { .dashboard { grid-template-columns: 1fr; } .panel { min-height: auto; } .rail { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .today-card, .timer-box { margin: 0; } .timer-box { padding-top: 0; border-top: 0; } }
-@media (max-width: 720px) { .app-shell { width: min(100% - 20px, 1440px); padding-top: 12px; } .topbar, .phone-access { align-items: flex-start; flex-direction: column; } .rail, .vocabulary-grid, .word-bank { grid-template-columns: 1fr; } .review-card, .history-item { grid-template-columns: 1fr; } .review-actions { justify-content: flex-start; } .feedback-modal { padding: 10px; align-items: end; } .modal-panel { width: 100%; max-height: 92vh; padding: 14px; } .modal-header { align-items: flex-start; } .modal-header h2 { font-size: 21px; } .modal-summary { grid-template-columns: 1fr 1fr; } .summary-card.wide { grid-column: 1 / -1; } }
+@media (max-width: 1120px) { .dashboard { grid-template-columns: 1fr; } .panel { min-height: auto; } .rail { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .today-card { margin: 0; } }
+@media (max-width: 720px) { .app-shell { width: min(100% - 20px, 1440px); padding-top: 12px; } .topbar, .phone-access { align-items: flex-start; flex-direction: column; } .topbar-actions { justify-content: flex-start; width: 100%; } .rail, .vocabulary-grid, .word-bank { grid-template-columns: 1fr; } .review-card, .history-item { grid-template-columns: 1fr; } .review-actions { justify-content: flex-start; } .feedback-modal, .chat-modal { padding: 10px; align-items: end; } .modal-panel, .chat-panel { width: 100%; max-height: 92vh; padding: 14px; } .chat-panel { height: 92vh; } .modal-header { align-items: flex-start; } .modal-header h2 { font-size: 21px; } .modal-summary { grid-template-columns: 1fr 1fr; } .summary-card.wide { grid-column: 1 / -1; } .chat-message { max-width: 94%; } .chat-input-row { grid-template-columns: 1fr; } }

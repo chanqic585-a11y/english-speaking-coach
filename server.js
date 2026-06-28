@@ -249,7 +249,7 @@ function getSettings() {
     apiKeyConfigured: provider === 'openai' ? Boolean(openAiKey) : Boolean(geminiKey),
     provider,
     model,
-    dailyDurationMinutes: 30,
+    dailyDurationMinutes: null,
     preferredFeedbackLanguage: 'Chinese explanations with English examples'
   };
 }
@@ -300,6 +300,82 @@ async function requestAiFeedback(answer, context, recording = null) {
   const provider = (process.env.AI_PROVIDER || 'gemini').toLowerCase();
   if (provider === 'openai') return requestOpenAiFeedback(answer, context, recording);
   return requestGeminiFeedback(answer, context, recording);
+}
+
+function normalizeChatMessages(messages) {
+  return (Array.isArray(messages) ? messages : [])
+    .map(message => ({
+      role: message.role === 'assistant' ? 'assistant' : 'user',
+      content: String(message.content || '').trim().slice(0, 1200)
+    }))
+    .filter(message => message.content)
+    .slice(-12);
+}
+
+function buildChatPrompt(messages) {
+  const transcript = messages.map(message => `${message.role === 'assistant' ? 'Coach' : 'Learner'}: ${message.content}`).join('\n');
+  return `You are an English daily conversation coach for a Chinese learner living in Mexico.
+
+Your job:
+- Chat naturally in English.
+- Keep the learner speaking with friendly follow-up questions.
+- Lightly correct unnatural English without stopping the conversation.
+- When the learner's sentence is awkward, show a better version.
+- Give one short repeat line the learner can say aloud.
+- Use simple, clear English. Use brief Chinese only when explaining a correction.
+
+Format every reply like this:
+Coach: <natural conversational reply>
+Better way: <one improved sentence if useful, otherwise "No correction needed.">
+Repeat: <one short sentence for the learner to repeat>
+Next question: <one easy follow-up question>
+
+Conversation so far:
+${transcript}`;
+}
+
+async function requestGeminiChat(messages) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  if (!apiKey) {
+    const error = new Error('GEMINI_API_KEY is not configured. Copy .env.example to .env and add your key.');
+    error.code = 'missing_api_key';
+    throw error;
+  }
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: buildChatPrompt(messages) }]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.7
+      }
+    })
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    const error = new Error(`Gemini request failed with status ${response.status}.`);
+    error.details = raw;
+    throw error;
+  }
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return raw.trim();
+  }
+  return extractGeminiText(data) || 'I am here. Tell me about your day in one or two sentences.';
 }
 
 async function requestGeminiFeedback(answer, context, recording = null) {
@@ -603,7 +679,9 @@ async function handleApi(req, res) {
       userAnswer: payload.userAnswer || '',
       aiFeedback: payload.aiFeedback || null,
       reflection: payload.reflection || {},
-      durationMinutes: Number(payload.durationMinutes || 30),
+      durationMinutes: payload.durationMinutes == null || payload.durationMinutes === ''
+        ? null
+        : Number(payload.durationMinutes),
       createdAt: payload.createdAt || now,
       updatedAt: now
     };
@@ -625,6 +703,25 @@ async function handleApi(req, res) {
     try {
       const feedback = await requestAiFeedback(answer, context, recording);
       sendJson(res, 200, { feedback });
+    } catch (error) {
+      sendJson(res, error.code === 'missing_api_key' ? 400 : 502, {
+        error: error.message,
+        details: error.details || null
+      });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/chat') {
+    const payload = JSON.parse(await readBody(req) || '{}');
+    const messages = normalizeChatMessages(payload.messages);
+    if (!messages.length || messages[messages.length - 1].role !== 'user') {
+      sendJson(res, 400, { error: 'Send a learner message before asking the AI coach to reply.' });
+      return;
+    }
+    try {
+      const reply = await requestGeminiChat(messages);
+      sendJson(res, 200, { reply });
     } catch (error) {
       sendJson(res, error.code === 'missing_api_key' ? 400 : 502, {
         error: error.message,

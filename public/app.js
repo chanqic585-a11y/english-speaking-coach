@@ -1,11 +1,11 @@
 ﻿const state = {
   topic: null,
   feedback: null,
-  remainingSeconds: 30 * 60,
-  timerId: null,
   mediaRecorder: null,
   audioChunks: [],
   speechRecognition: null,
+  chatRecognition: null,
+  chatMessages: [],
   finalTranscript: '',
   recordingStartedAt: null,
   lastRecordingId: null
@@ -25,7 +25,6 @@ const elements = {
   logicNote: document.querySelector('#logicNote'),
   expressionNote: document.querySelector('#expressionNote'),
   historyList: document.querySelector('#historyList'),
-  timer: document.querySelector('#timer'),
   phoneUrl: document.querySelector('#phoneUrl'),
   copyPhoneUrl: document.querySelector('#copyPhoneUrl'),
   vocabForm: document.querySelector('#vocabForm'),
@@ -48,7 +47,18 @@ const elements = {
   feedbackModalSummary: document.querySelector('#feedbackModalSummary'),
   feedbackModalContent: document.querySelector('#feedbackModalContent'),
   openFeedbackModal: document.querySelector('#openFeedbackModal'),
-  closeFeedbackModal: document.querySelector('#closeFeedbackModal')
+  closeFeedbackModal: document.querySelector('#closeFeedbackModal'),
+  openChat: document.querySelector('#openChat'),
+  chatModal: document.querySelector('#chatModal'),
+  chatPanel: document.querySelector('#chatModal .chat-panel'),
+  chatModalBackdrop: document.querySelector('#chatModalBackdrop'),
+  closeChat: document.querySelector('#closeChat'),
+  chatStatus: document.querySelector('#chatStatus'),
+  chatMessages: document.querySelector('#chatMessages'),
+  chatInput: document.querySelector('#chatInput'),
+  chatMic: document.querySelector('#chatMic'),
+  sendChat: document.querySelector('#sendChat'),
+  clearChat: document.querySelector('#clearChat')
 };
 
 async function api(path, options = {}) {
@@ -442,32 +452,6 @@ function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 }
 
-function updateTimer() {
-  const minutes = Math.floor(state.remainingSeconds / 60).toString().padStart(2, '0');
-  const seconds = Math.floor(state.remainingSeconds % 60).toString().padStart(2, '0');
-  elements.timer.textContent = `${minutes}:${seconds}`;
-}
-
-function startTimer() {
-  if (state.timerId) return;
-  state.timerId = setInterval(() => {
-    state.remainingSeconds = Math.max(0, state.remainingSeconds - 1);
-    updateTimer();
-    if (state.remainingSeconds === 0) pauseTimer();
-  }, 1000);
-}
-
-function pauseTimer() {
-  clearInterval(state.timerId);
-  state.timerId = null;
-}
-
-function resetTimer() {
-  pauseTimer();
-  state.remainingSeconds = 30 * 60;
-  updateTimer();
-}
-
 async function loadInitialData() {
   const [settings, topic] = await Promise.all([api('/api/settings'), api('/api/today')]);
   renderSettings(settings);
@@ -515,7 +499,7 @@ async function saveSession() {
       logic: elements.logicNote.value.trim(),
       expression: elements.expressionNote.value.trim()
     },
-    durationMinutes: 30
+    durationMinutes: null
   };
 
   try {
@@ -542,6 +526,158 @@ async function loadHistory() {
   `).join('');
 }
 
+function chatInputMode() {
+  return document.querySelector('input[name="chatInputMode"]:checked')?.value || 'text';
+}
+
+function chatOutputMode() {
+  return document.querySelector('input[name="chatOutputMode"]:checked')?.value || 'text';
+}
+
+function saveChatMessages() {
+  localStorage.setItem('englishSpeakingCoachChat', JSON.stringify(state.chatMessages.slice(-30)));
+}
+
+function loadChatMessages() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('englishSpeakingCoachChat') || '[]');
+    state.chatMessages = Array.isArray(saved) ? saved.slice(-30) : [];
+  } catch {
+    state.chatMessages = [];
+  }
+  if (!state.chatMessages.length) {
+    state.chatMessages = [{
+      role: 'assistant',
+      content: 'Hi, I am your daily English coach. Tell me one simple thing about your day, and I will help you say it more naturally.'
+    }];
+  }
+  renderChatMessages();
+}
+
+function renderChatMessages() {
+  elements.chatMessages.innerHTML = state.chatMessages.map(message => (
+    `<div class="chat-message ${message.role}">${escapeHtml(message.content)}</div>`
+  )).join('');
+  elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+}
+
+function openChat() {
+  loadChatMessages();
+  elements.chatModal.hidden = false;
+  document.body.classList.add('modal-open');
+  window.requestAnimationFrame(() => elements.chatPanel.focus());
+}
+
+function closeChat() {
+  elements.chatModal.hidden = true;
+  document.body.classList.remove('modal-open');
+  window.speechSynthesis?.cancel();
+  if (state.chatRecognition) {
+    state.chatRecognition.stop();
+    state.chatRecognition = null;
+  }
+}
+
+function speakChatReply(text) {
+  if (chatOutputMode() !== 'voice' || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'en-US';
+  utterance.rate = 0.9;
+  window.speechSynthesis.speak(utterance);
+}
+
+function setChatLoading(isLoading) {
+  elements.sendChat.disabled = isLoading;
+  elements.chatMic.disabled = isLoading;
+  elements.chatStatus.textContent = isLoading
+    ? 'AI coach is thinking...'
+    : 'Chat with your coach. Use text or voice input, then listen or read the reply.';
+}
+
+async function sendChatMessage() {
+  const text = elements.chatInput.value.trim();
+  if (!text) {
+    elements.chatStatus.textContent = 'Type or speak one English sentence first.';
+    return;
+  }
+
+  state.chatMessages.push({ role: 'user', content: text });
+  elements.chatInput.value = '';
+  renderChatMessages();
+  saveChatMessages();
+  setChatLoading(true);
+
+  try {
+    const data = await api('/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({ messages: state.chatMessages.filter(message => message.role !== 'system') })
+    });
+    const reply = String(data.reply || '').trim();
+    state.chatMessages.push({ role: 'assistant', content: reply });
+    renderChatMessages();
+    saveChatMessages();
+    speakChatReply(reply);
+  } catch (error) {
+    state.chatMessages.push({ role: 'system', content: `Chat failed: ${error.message}` });
+    renderChatMessages();
+    saveChatMessages();
+  } finally {
+    setChatLoading(false);
+  }
+}
+
+function startChatVoiceInput() {
+  if (chatInputMode() !== 'voice') {
+    elements.chatStatus.textContent = 'Switch to Voice input first.';
+    return;
+  }
+  const Recognition = getSpeechRecognition();
+  if (!Recognition) {
+    elements.chatStatus.textContent = 'Voice input is not supported in this browser. Use text input instead.';
+    return;
+  }
+  if (state.chatRecognition) {
+    state.chatRecognition.stop();
+    state.chatRecognition = null;
+    elements.chatMic.textContent = 'Speak';
+    return;
+  }
+
+  const recognition = new Recognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = true;
+  recognition.continuous = false;
+  recognition.onresult = event => {
+    let text = '';
+    for (let index = 0; index < event.results.length; index += 1) {
+      text += event.results[index][0].transcript;
+    }
+    elements.chatInput.value = text.trim();
+  };
+  recognition.onend = () => {
+    state.chatRecognition = null;
+    elements.chatMic.textContent = 'Speak';
+    elements.chatStatus.textContent = elements.chatInput.value.trim()
+      ? 'Voice captured. Send it when you are ready.'
+      : 'No voice text captured. Try again or use text input.';
+  };
+  recognition.onerror = event => {
+    elements.chatStatus.textContent = `Voice input issue: ${event.error || 'unavailable'}.`;
+  };
+  state.chatRecognition = recognition;
+  elements.chatMic.textContent = 'Stop';
+  elements.chatStatus.textContent = 'Listening... speak one or two English sentences.';
+  recognition.start();
+}
+
+function clearChat() {
+  window.speechSynthesis?.cancel();
+  state.chatMessages = [];
+  localStorage.removeItem('englishSpeakingCoachChat');
+  loadChatMessages();
+}
+
 document.querySelector('#requestFeedback').addEventListener('click', requestFeedback);
 elements.copyPhoneUrl.addEventListener('click', copyPhoneUrl);
 elements.openFeedbackModal.addEventListener('click', openFeedbackModal);
@@ -550,6 +686,20 @@ elements.feedbackModalBackdrop.addEventListener('click', closeFeedbackModal);
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !elements.feedbackModal.hidden) {
     closeFeedbackModal();
+  }
+  if (event.key === 'Escape' && !elements.chatModal.hidden) {
+    closeChat();
+  }
+});
+elements.openChat.addEventListener('click', openChat);
+elements.closeChat.addEventListener('click', closeChat);
+elements.chatModalBackdrop.addEventListener('click', closeChat);
+elements.sendChat.addEventListener('click', sendChatMessage);
+elements.chatMic.addEventListener('click', startChatVoiceInput);
+elements.clearChat.addEventListener('click', clearChat);
+elements.chatInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+    sendChatMessage();
   }
 });
 document.querySelector('#saveSession').addEventListener('click', saveSession);
@@ -568,11 +718,7 @@ document.querySelector('#loadTopic').addEventListener('click', async () => {
   const exclude = encodeURIComponent(state.topic?.prompt || '');
   renderTopic(await api(`/api/today?random=1&exclude=${exclude}`));
 });
-document.querySelector('#startTimer').addEventListener('click', startTimer);
-document.querySelector('#pauseTimer').addEventListener('click', pauseTimer);
-document.querySelector('#resetTimer').addEventListener('click', resetTimer);
 
-updateTimer();
 loadInitialData().catch(error => {
   elements.feedbackState.textContent = 'App setup issue';
   renderFeedbackError(error);

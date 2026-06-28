@@ -64,20 +64,6 @@ OPENAI_API_KEY=your_key_here
 OPENAI_MODEL=gpt-4.1-mini
 ```
 
-## Free mode
-
-If you do not want to use an API key, write your answer and click `Copy free feedback prompt`.
-
-Then:
-
-1. Open ChatGPT in your browser.
-2. Paste the copied prompt.
-3. Send it to ChatGPT.
-4. Copy the useful grammar point, logic point, and expression back into the reflection fields.
-5. Click `Save today's review`.
-
-This mode costs nothing in the app, but the feedback is manual instead of automatic.
-
 ## Built-in speaking practice
 
 Use the `Speaking recorder` inside the practice panel:

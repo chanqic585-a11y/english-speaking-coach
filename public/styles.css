@@ -39,8 +39,6 @@ button { cursor: pointer; }
 .timer-box { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
 .timer { font-size: 36px; font-weight: 800; margin: 8px 0; letter-spacing: 0; }
 .timer-actions, .practice-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.free-mode-box { margin-top: 14px; border: 1px solid #bae6fd; background: #f0f9ff; color: #0f3f5e; border-radius: 8px; padding: 12px; line-height: 1.45; }
-.free-mode-box p { margin: 6px 0 0; color: #38657f; }
 .panel { padding: 18px; min-height: 620px; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .panel-header.compact { margin-bottom: 10px; }

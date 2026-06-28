@@ -407,11 +407,7 @@ async function saveRecordingAndRequestFeedback() {
 
   state.lastRecordingId = saved.recording.id;
   elements.recordingStatus.textContent = `Recording saved: ${saved.recording.fileName}`;
-  if (transcript.length >= 20) {
-    await requestFeedback();
-  } else {
-    renderFeedbackError(new Error('Recording saved, but the transcript is too short for AI feedback. Add or edit the transcript, then send for feedback.'));
-  }
+  await requestFeedback();
 }
 
 function card(title, body) {
@@ -459,8 +455,8 @@ async function loadInitialData() {
 
 async function requestFeedback() {
   const answer = elements.answerInput.value.trim();
-  if (answer.length < 20) {
-    renderFeedbackError(new Error('Please enter a longer answer before requesting feedback.'));
+  if (answer.length < 20 && !state.lastRecordingId) {
+    renderFeedbackError(new Error('Please enter a longer answer or record audio before requesting feedback.'));
     return;
   }
 

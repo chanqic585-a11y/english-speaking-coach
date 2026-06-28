@@ -114,7 +114,7 @@ function readBody(req) {
 function readSessions() {
   ensureData();
   try {
-    const parsed = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+    const parsed = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8').replace(/^\uFEFF/, ''));
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -129,7 +129,7 @@ function writeSessions(sessions) {
 function readVocabulary() {
   ensureData();
   try {
-    const parsed = JSON.parse(fs.readFileSync(VOCABULARY_FILE, 'utf8'));
+    const parsed = JSON.parse(fs.readFileSync(VOCABULARY_FILE, 'utf8').replace(/^\uFEFF/, ''));
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -144,7 +144,7 @@ function writeVocabulary(items) {
 function readRecordings() {
   ensureData();
   try {
-    const parsed = JSON.parse(fs.readFileSync(RECORDINGS_FILE, 'utf8'));
+    const parsed = JSON.parse(fs.readFileSync(RECORDINGS_FILE, 'utf8').replace(/^\uFEFF/, ''));
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -250,6 +250,7 @@ function getSettings() {
 
 function buildFeedbackPrompt(answer, context, recording = null) {
   const metrics = speechMetrics(answer, recording);
+  const transcript = String(answer || '').trim() || '[No transcript was captured. Please listen to the attached audio and infer the spoken answer as accurately as possible.]';
   const audioNote = recording
     ? `Audio is attached. Recording duration: ${metrics.durationSeconds} seconds. Transcript word count: ${metrics.words}. Estimated speed: ${metrics.wordsPerMinute || 'unknown'} WPM.`
     : 'No audio is attached. Set pronunciationScore and fluencyScore to null, and explain that audio is needed for pronunciation assessment.';
@@ -263,7 +264,7 @@ Prompt: ${context.prompt}
 Sentence frame: ${context.sentenceFrame}
 
 User transcript:
-${answer}
+${transcript}
 
 Audio context:
 ${audioNote}
@@ -603,12 +604,12 @@ async function handleApi(req, res) {
   if (req.method === 'POST' && url.pathname === '/api/feedback') {
     const payload = JSON.parse(await readBody(req) || '{}');
     const answer = String(payload.answer || '').trim();
-    if (answer.length < 20) {
-      sendJson(res, 400, { error: 'Please enter a longer answer before requesting feedback.' });
-      return;
-    }
     const context = payload.context || todayTopic();
     const recording = findRecording(String(payload.recordingId || ''));
+    if (answer.length < 20 && !recording) {
+      sendJson(res, 400, { error: 'Please enter a longer answer or record audio before requesting feedback.' });
+      return;
+    }
     try {
       const feedback = await requestAiFeedback(answer, context, recording);
       sendJson(res, 200, { feedback });

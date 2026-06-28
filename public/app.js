@@ -2,7 +2,12 @@
   topic: null,
   feedback: null,
   remainingSeconds: 30 * 60,
-  timerId: null
+  timerId: null,
+  mediaRecorder: null,
+  audioChunks: [],
+  speechRecognition: null,
+  finalTranscript: '',
+  recordingStartedAt: null
 };
 
 const elements = {
@@ -29,7 +34,11 @@ const elements = {
   vocabTag: document.querySelector('#vocabTag'),
   vocabCount: document.querySelector('#vocabCount'),
   reviewList: document.querySelector('#reviewList'),
-  wordBank: document.querySelector('#wordBank')
+  wordBank: document.querySelector('#wordBank'),
+  startRecording: document.querySelector('#startRecording'),
+  stopRecording: document.querySelector('#stopRecording'),
+  recordingStatus: document.querySelector('#recordingStatus'),
+  recordingPlayback: document.querySelector('#recordingPlayback')
 };
 
 async function api(path, options = {}) {
@@ -268,6 +277,127 @@ async function reviewVocabulary(event) {
   await loadVocabulary();
 }
 
+function getSpeechRecognition() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function setRecordingUi(isRecording, message) {
+  elements.startRecording.disabled = isRecording;
+  elements.stopRecording.disabled = !isRecording;
+  elements.recordingStatus.textContent = message;
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function startSpeechRecognition() {
+  const Recognition = getSpeechRecognition();
+  if (!Recognition) {
+    elements.recordingStatus.textContent = 'Recording audio. Speech recognition is not supported in this browser.';
+    return;
+  }
+
+  const recognition = new Recognition();
+  recognition.lang = 'en-US';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.onresult = event => {
+    let interim = '';
+    for (let index = event.resultIndex; index < event.results.length; index++) {
+      const transcript = event.results[index][0]?.transcript || '';
+      if (event.results[index].isFinal) {
+        state.finalTranscript = `${state.finalTranscript} ${transcript}`.trim();
+      } else {
+        interim = `${interim} ${transcript}`.trim();
+      }
+    }
+    elements.answerInput.value = [state.finalTranscript, interim].filter(Boolean).join(' ');
+  };
+  recognition.onerror = event => {
+    elements.recordingStatus.textContent = `Recording audio. Speech recognition issue: ${event.error || 'unavailable'}.`;
+  };
+  try {
+    recognition.start();
+    state.speechRecognition = recognition;
+  } catch {
+    elements.recordingStatus.textContent = 'Recording audio. Speech recognition could not start in this browser.';
+  }
+}
+
+async function startRecording() {
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    renderFeedbackError(new Error('This browser does not support built-in recording. Try Chrome or the public HTTPS link on your phone.'));
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    state.audioChunks = [];
+    state.finalTranscript = '';
+    state.recordingStartedAt = Date.now();
+    const recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = event => {
+      if (event.data.size > 0) state.audioChunks.push(event.data);
+    };
+    recorder.onstop = () => {
+      stream.getTracks().forEach(track => track.stop());
+      saveRecordingAndRequestFeedback().catch(renderFeedbackError);
+    };
+    state.mediaRecorder = recorder;
+    recorder.start();
+    startSpeechRecognition();
+    setRecordingUi(true, 'Recording. Speak your answer clearly, then stop to save audio and request feedback.');
+  } catch (error) {
+    renderFeedbackError(new Error(`Microphone permission issue: ${error.message || 'access denied'}`));
+  }
+}
+
+function stopRecording() {
+  if (state.speechRecognition) {
+    try { state.speechRecognition.stop(); } catch {}
+    state.speechRecognition = null;
+  }
+  if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
+    state.mediaRecorder.stop();
+  }
+  setRecordingUi(false, 'Saving recording and preparing feedback...');
+}
+
+async function saveRecordingAndRequestFeedback() {
+  const blob = new Blob(state.audioChunks, { type: state.mediaRecorder?.mimeType || 'audio/webm' });
+  const transcript = elements.answerInput.value.trim();
+  elements.recordingPlayback.src = URL.createObjectURL(blob);
+  elements.recordingPlayback.hidden = false;
+
+  const audioBase64 = await blobToBase64(blob);
+  const durationSeconds = state.recordingStartedAt ? Math.round((Date.now() - state.recordingStartedAt) / 1000) : 0;
+  const saved = await api('/api/recordings', {
+    method: 'POST',
+    body: JSON.stringify({
+      audioBase64,
+      mimeType: blob.type || 'audio/webm',
+      transcript,
+      topic: state.topic?.topic || '',
+      focus: state.topic?.focus || '',
+      prompt: state.topic?.prompt || '',
+      durationSeconds
+    })
+  });
+
+  elements.recordingStatus.textContent = `Recording saved: ${saved.recording.fileName}`;
+  if (transcript.length >= 20) {
+    await requestFeedback();
+  } else {
+    renderFeedbackError(new Error('Recording saved, but the transcript is too short for AI feedback. Add or edit the transcript, then send for feedback.'));
+  }
+}
+
 function card(title, body) {
   return `<article class="feedback-card"><h3>${title}</h3>${body.startsWith('<') ? body : `<p>${body}</p>`}</article>`;
 }
@@ -383,6 +513,8 @@ document.querySelector('#refreshHistory').addEventListener('click', loadHistory)
 document.querySelector('#refreshVocabulary').addEventListener('click', loadVocabulary);
 elements.vocabForm.addEventListener('submit', addVocabulary);
 elements.reviewList.addEventListener('click', reviewVocabulary);
+elements.startRecording.addEventListener('click', startRecording);
+elements.stopRecording.addEventListener('click', stopRecording);
 document.querySelector('#clearAnswer').addEventListener('click', () => { elements.answerInput.value = ''; });
 document.querySelector('#loadTopic').addEventListener('click', async () => renderTopic(await api('/api/today')));
 document.querySelector('#startTimer').addEventListener('click', startTimer);

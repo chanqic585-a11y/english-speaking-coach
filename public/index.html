@@ -59,8 +59,19 @@
           <p class="sentence-frame" id="sentenceFrame"></p>
         </div>
         <div class="phrase-bank" id="phraseBank" aria-label="Phrase bank"></div>
+        <div class="voice-lab" aria-label="Built-in speaking practice">
+          <div>
+            <span class="label">Speaking recorder</span>
+            <p id="recordingStatus">Ready to record. Speech recognition works when your browser supports it.</p>
+          </div>
+          <div class="recording-actions">
+            <button type="button" class="primary-button" id="startRecording">Record</button>
+            <button type="button" class="secondary-button" id="stopRecording" disabled>Stop, save, and get feedback</button>
+          </div>
+          <audio id="recordingPlayback" controls hidden></audio>
+        </div>
         <label class="field-label" for="answerInput">Your spoken answer or transcript</label>
-        <textarea id="answerInput" rows="12" placeholder="On your phone, tap here and use the keyboard microphone. On computer, type or paste what you said..."></textarea>
+        <textarea id="answerInput" rows="12" placeholder="Click Record, speak your answer, then stop. The transcript will appear here when supported..."></textarea>
         <div class="practice-actions">
           <button type="button" class="primary-button" id="requestFeedback">Send for AI feedback</button>
           <button type="button" class="secondary-button" id="copyFreePrompt">Copy free feedback prompt</button>

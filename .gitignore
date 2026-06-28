@@ -7,4 +7,5 @@ CURRENT_URL.txt
 data/*.json
 data/*.log
 data/*.err.log
+data/recordings/
 !data/.gitkeep

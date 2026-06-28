@@ -7,8 +7,10 @@ const os = require('os');
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
+const RECORDINGS_DIR = path.join(DATA_DIR, 'recordings');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const VOCABULARY_FILE = path.join(DATA_DIR, 'vocabulary.json');
+const RECORDINGS_FILE = path.join(DATA_DIR, 'recordings.json');
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 
@@ -67,8 +69,10 @@ function loadEnv() {
 
 function ensureData() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.mkdirSync(RECORDINGS_DIR, { recursive: true });
   if (!fs.existsSync(SESSIONS_FILE)) fs.writeFileSync(SESSIONS_FILE, '[]\n', 'utf8');
   if (!fs.existsSync(VOCABULARY_FILE)) fs.writeFileSync(VOCABULARY_FILE, '[]\n', 'utf8');
+  if (!fs.existsSync(RECORDINGS_FILE)) fs.writeFileSync(RECORDINGS_FILE, '[]\n', 'utf8');
 }
 
 function sendJson(res, status, payload) {
@@ -97,7 +101,7 @@ function readBody(req) {
     let body = '';
     req.on('data', chunk => {
       body += chunk;
-      if (body.length > 1_000_000) {
+      if (body.length > 15_000_000) {
         reject(new Error('Request body is too large.'));
         req.destroy();
       }
@@ -135,6 +139,28 @@ function readVocabulary() {
 function writeVocabulary(items) {
   ensureData();
   fs.writeFileSync(VOCABULARY_FILE, JSON.stringify(items, null, 2) + '\n', 'utf8');
+}
+
+function readRecordings() {
+  ensureData();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(RECORDINGS_FILE, 'utf8'));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeRecordings(recordings) {
+  ensureData();
+  fs.writeFileSync(RECORDINGS_FILE, JSON.stringify(recordings, null, 2) + '\n', 'utf8');
+}
+
+function audioExtension(mimeType) {
+  if (mimeType.includes('mp4')) return 'mp4';
+  if (mimeType.includes('ogg')) return 'ogg';
+  if (mimeType.includes('wav')) return 'wav';
+  return 'webm';
 }
 
 function localDateOffset(days) {
@@ -325,6 +351,45 @@ async function handleApi(req, res) {
       .sort((a, b) => String(a.nextReviewAt || '').localeCompare(String(b.nextReviewAt || '')))
       .slice(0, 12);
     sendJson(res, 200, { items });
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/recordings') {
+    const recordings = readRecordings().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    sendJson(res, 200, { recordings: recordings.slice(0, 20) });
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/recordings') {
+    const payload = JSON.parse(await readBody(req) || '{}');
+    const audioBase64 = String(payload.audioBase64 || '');
+    const mimeType = String(payload.mimeType || 'audio/webm');
+    if (!audioBase64 || audioBase64.length < 100) {
+      sendJson(res, 400, { error: 'Audio data is required.' });
+      return;
+    }
+    const id = crypto.randomUUID();
+    const fileName = `${id}.${audioExtension(mimeType)}`;
+    const filePath = path.join(RECORDINGS_DIR, fileName);
+    fs.writeFileSync(filePath, Buffer.from(audioBase64, 'base64'));
+
+    const now = new Date().toISOString();
+    const recordings = readRecordings();
+    const recording = {
+      id,
+      date: localDateString(),
+      fileName,
+      mimeType,
+      transcript: String(payload.transcript || '').trim(),
+      topic: String(payload.topic || ''),
+      focus: String(payload.focus || ''),
+      prompt: String(payload.prompt || ''),
+      durationSeconds: Number(payload.durationSeconds || 0),
+      createdAt: now
+    };
+    recordings.unshift(recording);
+    writeRecordings(recordings.slice(0, 200));
+    sendJson(res, 201, { recording });
     return;
   }
 

@@ -60,6 +60,18 @@ Then:
 
 This mode costs nothing in the app, but the feedback is manual instead of automatic.
 
+## Built-in speaking practice
+
+Use the `Speaking recorder` inside the practice panel:
+
+1. Click `Record`.
+2. Speak your answer.
+3. Click `Stop, save, and get feedback`.
+
+The app saves the audio locally under `data/recordings/`, places the transcript into the answer box when browser speech recognition is available, and then sends that transcript through the existing AI feedback flow.
+
+Recording uses the browser MediaRecorder API. Live transcription uses browser SpeechRecognition when available, so support varies by browser. The public HTTPS tunnel generally works better for microphone and speech recognition permissions than plain local network links on some phones.
+
 ## Vocabulary practice
 
 Use the `Vocabulary` section to save words and phrases from your speaking practice.

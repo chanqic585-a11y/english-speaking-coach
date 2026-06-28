@@ -225,6 +225,12 @@ function todayTopic() {
   return topics[day % topics.length];
 }
 
+function randomTopic(excludePrompt = '') {
+  const candidates = topics.filter(topic => topic.prompt !== excludePrompt);
+  const pool = candidates.length ? candidates : topics;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function localDateString(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -476,7 +482,10 @@ async function handleApi(req, res) {
   }
 
   if (req.method === 'GET' && url.pathname === '/api/today') {
-    sendJson(res, 200, todayTopic());
+    const topic = url.searchParams.get('random') === '1'
+      ? randomTopic(url.searchParams.get('exclude') || '')
+      : todayTopic();
+    sendJson(res, 200, topic);
     return;
   }
 

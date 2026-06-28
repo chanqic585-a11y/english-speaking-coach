@@ -540,7 +540,10 @@ document.querySelector('#clearAnswer').addEventListener('click', () => {
   state.lastRecordingId = null;
   elements.recordingPlayback.hidden = true;
 });
-document.querySelector('#loadTopic').addEventListener('click', async () => renderTopic(await api('/api/today')));
+document.querySelector('#loadTopic').addEventListener('click', async () => {
+  const exclude = encodeURIComponent(state.topic?.prompt || '');
+  renderTopic(await api(`/api/today?random=1&exclude=${exclude}`));
+});
 document.querySelector('#startTimer').addEventListener('click', startTimer);
 document.querySelector('#pauseTimer').addEventListener('click', pauseTimer);
 document.querySelector('#resetTimer').addEventListener('click', resetTimer);

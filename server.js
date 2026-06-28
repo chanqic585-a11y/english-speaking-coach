@@ -215,10 +215,16 @@ function localDateString(date = new Date()) {
 }
 
 function getSettings() {
-  const apiKey = process.env.OPENAI_API_KEY || '';
+  const provider = (process.env.AI_PROVIDER || 'gemini').toLowerCase();
+  const geminiKey = process.env.GEMINI_API_KEY || '';
+  const openAiKey = process.env.OPENAI_API_KEY || '';
+  const model = provider === 'openai'
+    ? process.env.OPENAI_MODEL || 'gpt-4.1-mini'
+    : process.env.GEMINI_MODEL || 'gemini-2.5-flash';
   return {
-    apiKeyConfigured: Boolean(apiKey),
-    model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
+    apiKeyConfigured: provider === 'openai' ? Boolean(openAiKey) : Boolean(geminiKey),
+    provider,
+    model,
     dailyDurationMinutes: 30,
     preferredFeedbackLanguage: 'Chinese explanations with English examples'
   };
@@ -229,6 +235,65 @@ function buildFeedbackPrompt(answer, context) {
 }
 
 async function requestAiFeedback(answer, context) {
+  const provider = (process.env.AI_PROVIDER || 'gemini').toLowerCase();
+  if (provider === 'openai') return requestOpenAiFeedback(answer, context);
+  return requestGeminiFeedback(answer, context);
+}
+
+async function requestGeminiFeedback(answer, context) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  if (!apiKey) {
+    const error = new Error('GEMINI_API_KEY is not configured. Copy .env.example to .env and add your key.');
+    error.code = 'missing_api_key';
+    throw error;
+  }
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: buildFeedbackPrompt(answer, context) }]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.4
+      }
+    })
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    const error = new Error(`Gemini request failed with status ${response.status}.`);
+    error.details = raw;
+    throw error;
+  }
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { rawText: raw };
+  }
+
+  const text = extractGeminiText(data);
+  if (!text) return { rawResponse: data };
+
+  try {
+    return JSON.parse(stripCodeFence(text));
+  } catch {
+    return { rawText: text };
+  }
+}
+
+async function requestOpenAiFeedback(answer, context) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     const error = new Error('OPENAI_API_KEY is not configured. Copy .env.example to .env and add your key.');
@@ -270,6 +335,14 @@ async function requestAiFeedback(answer, context) {
   } catch {
     return { rawText: text };
   }
+}
+
+function extractGeminiText(data) {
+  if (!Array.isArray(data.candidates)) return '';
+  return data.candidates.flatMap(candidate => candidate.content?.parts || [])
+    .map(part => part.text || '')
+    .filter(Boolean)
+    .join('\n');
 }
 
 function extractOutputText(data) {

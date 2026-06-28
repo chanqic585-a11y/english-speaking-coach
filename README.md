@@ -5,7 +5,7 @@ A local daily English speaking coach for a 25-30 minute practice session. It use
 ## Run
 
 1. Copy `.env.example` to `.env`.
-2. Add your OpenAI API key to `.env`.
+2. Add your Gemini API key to `.env`.
 3. Start the app:
 
 ```powershell
@@ -44,7 +44,25 @@ Keep this computer awake while using the public link. The quick tunnel is tempor
 
 ## Without an API key
 
-The app still opens, shows topics, runs the timer, and saves sessions. AI feedback will show setup guidance until `OPENAI_API_KEY` is configured.
+The app still opens, shows topics, runs the timer, records speaking practice, and saves sessions. AI feedback will show setup guidance until `GEMINI_API_KEY` is configured.
+
+## AI feedback provider
+
+Gemini is the default provider:
+
+```env
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+OpenAI is still available as a fallback:
+
+```env
+AI_PROVIDER=openai
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4.1-mini
+```
 
 ## Free mode
 

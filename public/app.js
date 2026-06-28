@@ -70,7 +70,8 @@ function renderTopic(topic) {
 }
 
 function renderSettings(settings) {
-  elements.apiStatus.textContent = settings.apiKeyConfigured ? `API ready: ${settings.model}` : 'API key missing';
+  const provider = settings.provider || 'ai';
+  elements.apiStatus.textContent = settings.apiKeyConfigured ? `API ready: ${provider} / ${settings.model}` : `${provider} key missing`;
   elements.apiStatus.classList.toggle('ready', settings.apiKeyConfigured);
   elements.apiStatus.classList.toggle('missing', !settings.apiKeyConfigured);
 }
@@ -128,7 +129,7 @@ function renderFeedback(feedback) {
 
 function renderFeedbackError(error) {
   elements.feedbackState.textContent = 'Feedback unavailable';
-  const details = error.payload?.details ? `<pre>${escapeHtml(error.payload.details)}</pre>` : '<p>Copy .env.example to .env, add OPENAI_API_KEY, then restart the server.</p>';
+  const details = error.payload?.details ? `<pre>${escapeHtml(error.payload.details)}</pre>` : '<p>Copy .env.example to .env, add GEMINI_API_KEY, then restart the server.</p>';
   elements.feedbackContent.innerHTML = card('Setup or request issue', `<p>${escapeHtml(error.message)}</p>${details}`);
 }
 

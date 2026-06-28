@@ -78,6 +78,8 @@ The app saves the audio locally under `data/recordings/` and places the transcri
 
 AI feedback opens in a dialog automatically. The dialog shows request progress first, then highlights pronunciation score, fluency score, and the repeat script before the detailed grammar and logic notes.
 
+After feedback is ready, the dialog automatically starts a short `Follow-up practice` loop. Gemini asks one follow-up question based on your answer and feedback, you answer in English, and Gemini gives a light correction plus the next question. The loop stops after 2-3 rounds with a short closing summary.
+
 When Gemini feedback is enabled, recorded sessions also send the saved audio to Gemini so the feedback can include:
 
 - pronunciation score
@@ -102,6 +104,8 @@ Every role and learner turn is kept in the scene transcript. During the scene, t
 You can also click `Get scene feedback` after at least one learner reply if you want an early review, but you do not need to click AI feedback after every single turn.
 
 This is intentionally different from `AI Daily Chat`: role scenario conversation stays inside a specific real-life scene and has a beginning, middle, and closing. AI Daily Chat is open-ended daily conversation.
+
+`Follow-up practice` is also different from role scenarios: it starts only after AI feedback and keeps asking about the same answer, similar to IELTS Part 3 questions.
 
 ## AI daily chat
 

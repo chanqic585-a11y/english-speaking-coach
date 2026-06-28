@@ -6,6 +6,12 @@
   speechRecognition: null,
   chatRecognition: null,
   chatMessages: [],
+  feedbackAnswer: '',
+  feedbackFollowupQuestion: '',
+  feedbackFollowupTurns: [],
+  feedbackFollowupComplete: false,
+  feedbackFollowupLoading: false,
+  feedbackFollowupClosing: '',
   scenarioTurns: [],
   currentAiLine: '',
   scenarioComplete: false,
@@ -196,6 +202,116 @@ function renderFeedbackSummary(feedback) {
   ].join('');
 }
 
+function renderFeedbackFollowupPanel() {
+  if (!state.feedback) return '';
+  const turns = state.feedbackFollowupTurns.map((turn, index) => `
+    <div class="feedback-followup-turn">
+      <span>Round ${index + 1}</span>
+      <p><strong>Follow-up question:</strong> ${escapeHtml(turn.question)}</p>
+      <p><strong>Your answer:</strong> ${escapeHtml(turn.answer)}</p>
+      ${turn.coachingNote ? `<p><strong>Coach:</strong> ${escapeHtml(turn.coachingNote)}</p>` : ''}
+      ${turn.betterWay ? `<p><strong>Better way:</strong> ${escapeHtml(turn.betterWay)}</p>` : ''}
+      ${turn.repeatLine ? `<p><strong>Repeat:</strong> ${escapeHtml(turn.repeatLine)}</p>` : ''}
+    </div>
+  `).join('');
+
+  const currentQuestion = state.feedbackFollowupQuestion && !state.feedbackFollowupComplete
+    ? `
+      <div class="feedback-followup-current">
+        <p><strong>Follow-up question:</strong> ${escapeHtml(state.feedbackFollowupQuestion)}</p>
+        <textarea id="feedbackFollowupAnswer" rows="3" placeholder="Answer this follow-up in English..."></textarea>
+        <button type="button" class="primary-button" id="sendFeedbackFollowup" ${state.feedbackFollowupLoading ? 'disabled' : ''}>Send follow-up answer</button>
+      </div>
+    `
+    : '';
+
+  const loading = state.feedbackFollowupLoading
+    ? '<p class="muted">Preparing the next follow-up...</p>'
+    : '';
+  const closing = state.feedbackFollowupComplete
+    ? `<p class="feedback-followup-closing">${escapeHtml(state.feedbackFollowupClosing || 'Follow-up practice complete.')}</p>`
+    : '';
+
+  return `
+    <section class="feedback-followup-box" aria-label="Feedback follow-up practice">
+      <div>
+        <span class="label">Follow-up practice</span>
+        <h3>Answer 2-3 quick follow-up questions</h3>
+        <p class="muted">This turns feedback into a short speaking loop, like IELTS Part 3 practice.</p>
+      </div>
+      <div class="feedback-followup-list">${turns || '<p class="muted">Your first follow-up question will appear here automatically.</p>'}</div>
+      ${loading}
+      ${currentQuestion}
+      ${closing}
+    </section>
+  `;
+}
+
+function renderFeedbackModalContent() {
+  if (!state.feedback) return;
+  const details = buildFeedbackDetails(state.feedback);
+  elements.feedbackModalContent.innerHTML = `${details}${renderFeedbackFollowupPanel()}`;
+}
+
+async function requestFeedbackFollowup() {
+  if (!state.feedback || state.feedbackFollowupLoading || state.feedbackFollowupComplete) return;
+  state.feedbackFollowupLoading = true;
+  renderFeedbackModalContent();
+  try {
+    const data = await api('/api/feedback-followups', {
+      method: 'POST',
+      body: JSON.stringify({
+        context: state.topic,
+        answer: state.feedbackAnswer,
+        feedback: state.feedback,
+        turns: state.feedbackFollowupTurns.map(turn => ({
+          question: turn.question,
+          answer: turn.answer
+        }))
+      })
+    });
+    const followup = data.followup || {};
+    if (state.feedbackFollowupTurns.length && (followup.coachingNote || followup.betterWay || followup.repeatLine)) {
+      const latest = state.feedbackFollowupTurns[state.feedbackFollowupTurns.length - 1];
+      latest.coachingNote = followup.coachingNote || '';
+      latest.betterWay = followup.betterWay || '';
+      latest.repeatLine = followup.repeatLine || '';
+    }
+    state.feedbackFollowupComplete = Boolean(followup.isComplete) || state.feedbackFollowupTurns.length >= 3;
+    state.feedbackFollowupClosing = followup.closingSummary || '';
+    state.feedbackFollowupQuestion = state.feedbackFollowupComplete ? '' : String(followup.question || '').trim();
+    if (!state.feedbackFollowupQuestion && !state.feedbackFollowupComplete) {
+      state.feedbackFollowupQuestion = 'Can you explain your idea with one specific example?';
+    }
+  } catch (error) {
+    state.feedbackFollowupQuestion = '';
+    state.feedbackFollowupClosing = `Follow-up unavailable: ${error.message}`;
+    state.feedbackFollowupComplete = true;
+  } finally {
+    state.feedbackFollowupLoading = false;
+    renderFeedbackModalContent();
+  }
+}
+
+async function sendFeedbackFollowupAnswer() {
+  const input = document.querySelector('#feedbackFollowupAnswer');
+  const answer = input?.value.trim() || '';
+  if (!state.feedbackFollowupQuestion) return;
+  if (answer.length < 5) {
+    if (input) input.placeholder = 'Write a little more before sending...';
+    return;
+  }
+  state.feedbackFollowupTurns.push({
+    question: state.feedbackFollowupQuestion,
+    answer,
+    coachingNote: '',
+    betterWay: '',
+    repeatLine: ''
+  });
+  state.feedbackFollowupQuestion = '';
+  await requestFeedbackFollowup();
+}
+
 function openFeedbackModal() {
   elements.feedbackModal.hidden = false;
   document.body.classList.add('modal-open');
@@ -223,6 +339,11 @@ function renderFeedbackLoading() {
 
 function renderFeedback(feedback) {
   state.feedback = feedback;
+  state.feedbackFollowupQuestion = '';
+  state.feedbackFollowupTurns = [];
+  state.feedbackFollowupComplete = false;
+  state.feedbackFollowupLoading = false;
+  state.feedbackFollowupClosing = '';
   elements.feedbackState.textContent = 'Feedback received';
   elements.openFeedbackModal.disabled = false;
   elements.recordingStatus.textContent = state.lastRecordingId
@@ -232,10 +353,11 @@ function renderFeedback(feedback) {
   const details = buildFeedbackDetails(feedback);
   elements.feedbackContent.innerHTML = details;
   elements.feedbackModalTitle.textContent = 'Feedback is ready';
-  elements.feedbackModalStatus.textContent = 'Start with the scores and repeat script, then review the detailed corrections.';
+  elements.feedbackModalStatus.textContent = 'Start with the scores and repeat script, then answer the follow-up question.';
   elements.feedbackModalSummary.innerHTML = renderFeedbackSummary(feedback);
-  elements.feedbackModalContent.innerHTML = details;
+  elements.feedbackModalContent.innerHTML = `${details}${renderFeedbackFollowupPanel()}`;
   openFeedbackModal();
+  requestFeedbackFollowup();
 }
 
 function renderFeedbackError(error) {
@@ -542,6 +664,7 @@ async function requestFeedback() {
 
   setFeedbackLoading(true);
   renderFeedbackLoading();
+  state.feedbackAnswer = answer;
   try {
     const data = await api('/api/feedback', {
       method: 'POST',
@@ -986,6 +1109,11 @@ elements.copyPhoneUrl.addEventListener('click', copyPhoneUrl);
 elements.openFeedbackModal.addEventListener('click', openFeedbackModal);
 elements.closeFeedbackModal.addEventListener('click', closeFeedbackModal);
 elements.feedbackModalBackdrop.addEventListener('click', closeFeedbackModal);
+elements.feedbackModalContent.addEventListener('click', event => {
+  if (event.target?.id === 'sendFeedbackFollowup') {
+    sendFeedbackFollowupAnswer();
+  }
+});
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !elements.feedbackModal.hidden) {
     closeFeedbackModal();

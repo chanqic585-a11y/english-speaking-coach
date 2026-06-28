@@ -384,6 +384,142 @@ Conversation so far:
 ${transcript}`;
 }
 
+function normalizeFeedbackFollowupTurns(turns) {
+  return (Array.isArray(turns) ? turns : [])
+    .map(turn => ({
+      question: String(turn.question || '').trim().slice(0, 600),
+      answer: String(turn.answer || '').trim().slice(0, 1400)
+    }))
+    .filter(turn => turn.question && turn.answer)
+    .slice(-3);
+}
+
+function buildFeedbackFollowupPrompt(payload) {
+  const context = payload.context || todayTopic();
+  const answer = String(payload.answer || '').trim();
+  const feedback = payload.feedback || {};
+  const turns = normalizeFeedbackFollowupTurns(payload.turns);
+  const transcript = turns.length
+    ? turns.map((turn, index) => `${index + 1}. Coach: ${turn.question}\nLearner: ${turn.answer}`).join('\n')
+    : '[No follow-up turns yet]';
+  const maxRoundsReached = turns.length >= 3;
+
+  return `You are an English speaking coach running a short follow-up speaking loop after feedback.
+
+Learner profile:
+- Chinese learner living in Mexico
+- Wants IELTS 7.5-level speaking: clear logic, natural grammar, and fluent answers
+
+Practice context:
+Focus: ${context.focus || ''}
+Topic: ${context.topic || ''}
+Prompt: ${context.prompt || context.situation || ''}
+
+Original learner answer:
+${answer || '[No original answer provided]'}
+
+AI feedback summary:
+Quick diagnosis: ${feedback.quickDiagnosis || ''}
+Natural version: ${feedback.naturalVersion || ''}
+Repeat script: ${feedback.repeatScript || ''}
+Reusable expressions: ${(feedback.reusableExpressions || []).join(', ')}
+Logic notes: ${(feedback.logicCoherence || []).join(' | ')}
+
+Follow-up turns so far:
+${transcript}
+
+Return valid JSON only with:
+question: string
+coachingNote: string
+betterWay: string
+repeatLine: string
+isComplete: boolean
+closingSummary: string
+
+Rules:
+- If there are no follow-up turns yet, ask one natural follow-up question based on the original answer and feedback. Example style: "Why do you think so?"
+- If there is a learner follow-up answer, give one short Chinese coaching note, one improved English sentence, and one short repeat line.
+- Ask only one next question at a time.
+- Run 2-3 follow-up rounds total. If the learner has answered fewer than 2 follow-up questions, do not end the loop yet.
+- ${maxRoundsReached ? 'The learner has already answered 3 follow-up rounds. Set isComplete true, leave question empty, and give a short Chinese closingSummary.' : 'If the learner has answered enough for a useful loop, set isComplete true; otherwise ask the next question.'}
+- Keep questions in simple natural English.
+- Keep Chinese explanations short.`;
+}
+
+function enforceFeedbackFollowupRounds(followup, turns) {
+  const result = followup && typeof followup === 'object' ? followup : {};
+  if (turns.length < 2) {
+    result.isComplete = false;
+    if (!String(result.question || '').trim()) {
+      result.question = turns.length === 0
+        ? 'Why do you think so?'
+        : 'Can you give one specific example?';
+    }
+    result.closingSummary = '';
+  }
+  if (turns.length >= 3) {
+    result.isComplete = true;
+    result.question = '';
+    if (!String(result.closingSummary || '').trim()) {
+      result.closingSummary = '这轮追问已经完成。下一步可以把你的答案整理成更自然、更有逻辑的一段口语回答。';
+    }
+  }
+  return result;
+}
+
+async function requestGeminiFeedbackFollowups(payload) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  if (!apiKey) {
+    const error = new Error('GEMINI_API_KEY is not configured. Copy .env.example to .env and add your key.');
+    error.code = 'missing_api_key';
+    throw error;
+  }
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: buildFeedbackFollowupPrompt(payload) }]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.45
+      }
+    })
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    const error = new Error(`Gemini request failed with status ${response.status}.`);
+    error.details = raw;
+    throw error;
+  }
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { rawText: raw };
+  }
+
+  const text = extractGeminiText(data);
+  if (!text) return { rawResponse: data };
+
+  try {
+    return JSON.parse(stripCodeFence(text));
+  } catch {
+    return { rawText: text };
+  }
+}
+
 async function requestGeminiChat(messages) {
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
@@ -996,6 +1132,31 @@ async function handleApi(req, res) {
     try {
       const reply = await requestGeminiChat(messages);
       sendJson(res, 200, { reply });
+    } catch (error) {
+      sendJson(res, error.code === 'missing_api_key' ? 400 : 502, {
+        error: error.message,
+        details: error.details || null
+      });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/feedback-followups') {
+    const payload = JSON.parse(await readBody(req) || '{}');
+    const answer = String(payload.answer || '').trim();
+    const turns = normalizeFeedbackFollowupTurns(payload.turns);
+    if (answer.length < 10) {
+      sendJson(res, 400, { error: 'Submit feedback for an answer before starting follow-up practice.' });
+      return;
+    }
+    try {
+      const followup = await requestGeminiFeedbackFollowups({
+        context: payload.context || todayTopic(),
+        answer,
+        feedback: payload.feedback || {},
+        turns
+      });
+      sendJson(res, 200, { followup: enforceFeedbackFollowupRounds(followup, turns) });
     } catch (error) {
       sendJson(res, error.code === 'missing_api_key' ? 400 : 502, {
         error: error.message,

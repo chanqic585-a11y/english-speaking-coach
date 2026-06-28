@@ -378,6 +378,109 @@ async function requestGeminiChat(messages) {
   return extractGeminiText(data) || 'I am here. Tell me about your day in one or two sentences.';
 }
 
+function buildFollowupPrompt(payload) {
+  const context = payload.context || todayTopic();
+  const firstAnswer = String(payload.answer || '').trim();
+  const selectedQuestion = String(payload.question || '').trim();
+  const followupAnswer = String(payload.followupAnswer || '').trim();
+  const mode = selectedQuestion && followupAnswer ? 'respond' : 'questions';
+
+  return `You are an English speaking examiner and friendly conversation coach.
+
+The learner is a Chinese speaker living in Mexico. Keep the practice focused on the current speaking topic, not free chat.
+
+Current topic:
+Focus: ${context.focus || ''}
+Topic: ${context.topic || ''}
+Prompt: ${context.prompt || ''}
+Sentence frame: ${context.sentenceFrame || ''}
+
+Learner's first answer:
+${firstAnswer || '[No answer provided]'}
+
+${mode === 'respond' ? `Selected follow-up question:
+${selectedQuestion}
+
+Learner's follow-up answer:
+${followupAnswer}` : ''}
+
+Return valid JSON only.
+
+If mode is "questions", return:
+{
+  "coachingNote": "one short Chinese sentence explaining what the follow-up practice should train",
+  "questions": ["question 1", "question 2", "question 3"]
+}
+
+If mode is "respond", return:
+{
+  "coachingNote": "one short Chinese sentence with light correction or encouragement",
+  "betterWay": "one improved English sentence based on the learner's follow-up answer",
+  "repeatLine": "one short English sentence the learner can repeat aloud",
+  "questions": ["next question 1", "next question 2"]
+}
+
+Rules:
+- Questions must be natural spoken English.
+- Questions must stay connected to the current topic and the learner's answer.
+- Do not ask broad unrelated daily-chat questions.
+- Make questions suitable for IELTS Speaking Part 3 or real conversation.
+- Use Chinese only in coachingNote.`;
+}
+
+async function requestGeminiFollowups(payload) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  if (!apiKey) {
+    const error = new Error('GEMINI_API_KEY is not configured. Copy .env.example to .env and add your key.');
+    error.code = 'missing_api_key';
+    throw error;
+  }
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: buildFollowupPrompt(payload) }]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.65
+      }
+    })
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    const error = new Error(`Gemini request failed with status ${response.status}.`);
+    error.details = raw;
+    throw error;
+  }
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { rawText: raw };
+  }
+
+  const text = extractGeminiText(data);
+  if (!text) return { rawResponse: data };
+
+  try {
+    return JSON.parse(stripCodeFence(text));
+  } catch {
+    return { rawText: text };
+  }
+}
+
 async function requestGeminiFeedback(answer, context, recording = null) {
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
@@ -722,6 +825,36 @@ async function handleApi(req, res) {
     try {
       const reply = await requestGeminiChat(messages);
       sendJson(res, 200, { reply });
+    } catch (error) {
+      sendJson(res, error.code === 'missing_api_key' ? 400 : 502, {
+        error: error.message,
+        details: error.details || null
+      });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/followups') {
+    const payload = JSON.parse(await readBody(req) || '{}');
+    const answer = String(payload.answer || '').trim();
+    const question = String(payload.question || '').trim();
+    const followupAnswer = String(payload.followupAnswer || '').trim();
+    if (answer.length < 10) {
+      sendJson(res, 400, { error: 'Answer the current topic first, then ask for follow-up questions.' });
+      return;
+    }
+    if ((question && !followupAnswer) || (!question && followupAnswer)) {
+      sendJson(res, 400, { error: 'Send both the selected follow-up question and your follow-up answer.' });
+      return;
+    }
+    try {
+      const followups = await requestGeminiFollowups({
+        context: payload.context || todayTopic(),
+        answer,
+        question,
+        followupAnswer
+      });
+      sendJson(res, 200, { followups });
     } catch (error) {
       sendJson(res, error.code === 'missing_api_key' ? 400 : 502, {
         error: error.message,

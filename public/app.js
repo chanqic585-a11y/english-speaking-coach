@@ -6,6 +6,8 @@
   speechRecognition: null,
   chatRecognition: null,
   chatMessages: [],
+  followupQuestions: [],
+  selectedFollowupQuestion: '',
   finalTranscript: '',
   recordingStartedAt: null,
   lastRecordingId: null
@@ -58,7 +60,16 @@ const elements = {
   chatInput: document.querySelector('#chatInput'),
   chatMic: document.querySelector('#chatMic'),
   sendChat: document.querySelector('#sendChat'),
-  clearChat: document.querySelector('#clearChat')
+  clearChat: document.querySelector('#clearChat'),
+  requestFollowups: document.querySelector('#requestFollowups'),
+  followupStatus: document.querySelector('#followupStatus'),
+  followupQuestions: document.querySelector('#followupQuestions'),
+  followupResponse: document.querySelector('#followupResponse'),
+  selectedFollowupQuestion: document.querySelector('#selectedFollowupQuestion'),
+  followupAnswer: document.querySelector('#followupAnswer'),
+  sendFollowupAnswer: document.querySelector('#sendFollowupAnswer'),
+  clearFollowups: document.querySelector('#clearFollowups'),
+  followupCoaching: document.querySelector('#followupCoaching')
 };
 
 async function api(path, options = {}) {
@@ -526,6 +537,120 @@ async function loadHistory() {
   `).join('');
 }
 
+function setFollowupLoading(isLoading) {
+  elements.requestFollowups.disabled = isLoading;
+  elements.sendFollowupAnswer.disabled = isLoading;
+  elements.followupStatus.textContent = isLoading
+    ? 'AI is preparing topic follow-up questions...'
+    : 'Answer the topic, then let AI ask follow-up questions.';
+}
+
+function renderFollowupQuestions(questions) {
+  state.followupQuestions = Array.isArray(questions) ? questions.filter(Boolean).slice(0, 3) : [];
+  if (!state.followupQuestions.length) {
+    elements.followupQuestions.innerHTML = '<p class="muted">No follow-up questions yet.</p>';
+    return;
+  }
+
+  elements.followupQuestions.innerHTML = state.followupQuestions.map((question, index) => `
+    <button type="button" class="followup-question" data-question="${escapeHtml(question)}">
+      <span>${index + 1}</span>
+      <strong>${escapeHtml(question)}</strong>
+    </button>
+  `).join('');
+}
+
+function renderFollowupResult(followups) {
+  if (followups.rawText || followups.rawResponse) {
+    elements.followupCoaching.innerHTML = card('Raw follow-up response', escapeHtml(followups.rawText || JSON.stringify(followups.rawResponse, null, 2)));
+    return;
+  }
+
+  const coaching = followups.coachingNote
+    ? `<p>${escapeHtml(followups.coachingNote)}</p>`
+    : '<p>Choose one follow-up question and answer it aloud or in writing.</p>';
+  const betterWay = followups.betterWay ? `<p><strong>Better way:</strong> ${escapeHtml(followups.betterWay)}</p>` : '';
+  const repeatLine = followups.repeatLine ? `<p><strong>Repeat:</strong> ${escapeHtml(followups.repeatLine)}</p>` : '';
+
+  elements.followupCoaching.innerHTML = card('Follow-up coaching', `${coaching}${betterWay}${repeatLine}`);
+  renderFollowupQuestions(followups.questions || []);
+}
+
+async function requestFollowups() {
+  const answer = elements.answerInput.value.trim();
+  if (answer.length < 10) {
+    elements.followupStatus.textContent = 'Answer the current topic first, then ask for follow-up questions.';
+    return;
+  }
+
+  setFollowupLoading(true);
+  try {
+    const data = await api('/api/followups', {
+      method: 'POST',
+      body: JSON.stringify({ answer, context: state.topic })
+    });
+    renderFollowupResult(data.followups || {});
+    elements.followupStatus.textContent = 'Choose one question and continue the topic conversation.';
+  } catch (error) {
+    elements.followupStatus.textContent = `Follow-up unavailable: ${error.message}`;
+  } finally {
+    setFollowupLoading(false);
+  }
+}
+
+function selectFollowupQuestion(question) {
+  state.selectedFollowupQuestion = question;
+  elements.selectedFollowupQuestion.textContent = question;
+  elements.followupResponse.hidden = false;
+  elements.followupAnswer.value = '';
+  elements.followupAnswer.focus();
+}
+
+async function sendFollowupAnswer() {
+  const answer = elements.answerInput.value.trim();
+  const followupAnswer = elements.followupAnswer.value.trim();
+  if (!state.selectedFollowupQuestion) {
+    elements.followupStatus.textContent = 'Choose one follow-up question first.';
+    return;
+  }
+  if (followupAnswer.length < 5) {
+    elements.followupStatus.textContent = 'Write or say a short answer to the follow-up question first.';
+    return;
+  }
+
+  setFollowupLoading(true);
+  try {
+    const data = await api('/api/followups', {
+      method: 'POST',
+      body: JSON.stringify({
+        answer,
+        context: state.topic,
+        question: state.selectedFollowupQuestion,
+        followupAnswer
+      })
+    });
+    renderFollowupResult(data.followups || {});
+    elements.followupAnswer.value = '';
+    elements.followupResponse.hidden = true;
+    state.selectedFollowupQuestion = '';
+    elements.followupStatus.textContent = 'Good. Pick another follow-up question to keep speaking.';
+  } catch (error) {
+    elements.followupStatus.textContent = `Follow-up unavailable: ${error.message}`;
+  } finally {
+    setFollowupLoading(false);
+  }
+}
+
+function clearFollowups() {
+  state.followupQuestions = [];
+  state.selectedFollowupQuestion = '';
+  elements.followupQuestions.innerHTML = '';
+  elements.followupCoaching.innerHTML = '';
+  elements.followupAnswer.value = '';
+  elements.followupResponse.hidden = true;
+  elements.followupStatus.textContent = 'Answer the topic, then let AI ask follow-up questions.';
+}
+
 function chatInputMode() {
   return document.querySelector('input[name="chatInputMode"]:checked')?.value || 'text';
 }
@@ -702,6 +827,14 @@ elements.chatInput.addEventListener('keydown', event => {
     sendChatMessage();
   }
 });
+elements.requestFollowups.addEventListener('click', requestFollowups);
+elements.followupQuestions.addEventListener('click', event => {
+  const button = event.target.closest('.followup-question');
+  if (!button) return;
+  selectFollowupQuestion(button.dataset.question || '');
+});
+elements.sendFollowupAnswer.addEventListener('click', sendFollowupAnswer);
+elements.clearFollowups.addEventListener('click', clearFollowups);
 document.querySelector('#saveSession').addEventListener('click', saveSession);
 document.querySelector('#refreshHistory').addEventListener('click', loadHistory);
 document.querySelector('#refreshVocabulary').addEventListener('click', loadVocabulary);
@@ -713,6 +846,7 @@ document.querySelector('#clearAnswer').addEventListener('click', () => {
   elements.answerInput.value = '';
   state.lastRecordingId = null;
   elements.recordingPlayback.hidden = true;
+  clearFollowups();
 });
 document.querySelector('#loadTopic').addEventListener('click', async () => {
   const exclude = encodeURIComponent(state.topic?.prompt || '');

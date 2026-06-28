@@ -85,6 +85,18 @@ When Gemini feedback is enabled, recorded sessions also send the saved audio to 
 
 Recording uses the browser MediaRecorder API. Live transcription uses browser SpeechRecognition when available, so support varies by browser. The public HTTPS tunnel generally works better for microphone and speech recognition permissions than plain local network links on some phones.
 
+## Topic follow-up mode
+
+Use `Topic follow-up` inside the daily practice panel when you want the current prompt to feel more like a real conversation.
+
+1. Answer the current topic in the main answer box.
+2. Click `Ask follow-up questions`.
+3. Pick one AI follow-up question.
+4. Answer it in English.
+5. Send the follow-up answer to get light coaching and more topic-bound questions.
+
+This is intentionally different from `AI Daily Chat`: topic follow-up stays attached to the current speaking prompt, while AI Daily Chat is open-ended daily conversation.
+
 ## AI daily chat
 
 Click `AI Daily Chat` to open a self-paced conversation window.

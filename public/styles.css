@@ -38,6 +38,15 @@ button { cursor: pointer; }
 .steps span { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 50%; background: var(--panel); color: var(--accent); font-weight: 800; }
 .steps small { display: block; color: var(--muted); margin-top: 2px; }
 .practice-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.followup-box { margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-soft); padding: 12px; display: grid; gap: 10px; }
+.followup-box .panel-header { margin-bottom: 0; }
+.followup-questions { display: grid; gap: 8px; }
+.followup-question { width: 100%; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: center; text-align: left; border: 1px solid #c7d2fe; border-radius: 8px; background: #eef2ff; color: #1e1b4b; padding: 10px; }
+.followup-question span { width: 24px; height: 24px; display: inline-grid; place-items: center; border-radius: 50%; background: #fff; color: var(--accent); font-weight: 800; }
+.followup-question strong { line-height: 1.35; overflow-wrap: anywhere; }
+.followup-response { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+.followup-response p { margin: 0; line-height: 1.4; }
+.followup-coaching { display: grid; gap: 8px; }
 .panel { padding: 18px; min-height: 620px; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .panel-header.compact { margin-bottom: 10px; }

@@ -70,6 +70,26 @@
           <button type="button" class="primary-button" id="requestFeedback">Send for AI feedback</button>
           <button type="button" class="secondary-button" id="clearAnswer">Clear</button>
         </div>
+        <div class="followup-box" aria-label="Topic follow-up mode">
+          <div class="panel-header compact">
+            <div>
+              <span class="label">Topic follow-up</span>
+              <p class="muted" id="followupStatus">Answer the topic, then let AI ask follow-up questions.</p>
+            </div>
+            <button type="button" class="secondary-button compact-button" id="requestFollowups">Ask follow-up questions</button>
+          </div>
+          <div class="followup-questions" id="followupQuestions"></div>
+          <div class="followup-response" id="followupResponse" hidden>
+            <span class="label">Your follow-up answer</span>
+            <p class="muted" id="selectedFollowupQuestion"></p>
+            <textarea id="followupAnswer" rows="4" placeholder="Answer the selected follow-up question in English..."></textarea>
+            <div class="practice-actions">
+              <button type="button" class="primary-button" id="sendFollowupAnswer">Send follow-up answer</button>
+              <button type="button" class="secondary-button" id="clearFollowups">Clear follow-up</button>
+            </div>
+          </div>
+          <div class="followup-coaching" id="followupCoaching"></div>
+        </div>
       </section>
 
       <section class="panel feedback-panel" aria-label="AI feedback workspace">

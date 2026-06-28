@@ -550,6 +550,108 @@ async function requestGeminiFollowups(payload) {
   }
 }
 
+function normalizeScenarioTurns(turns) {
+  return (Array.isArray(turns) ? turns : [])
+    .map(turn => ({
+      speaker: String(turn.speaker || '').trim().slice(0, 80),
+      text: String(turn.text || '').trim().slice(0, 1600)
+    }))
+    .filter(turn => turn.speaker && turn.text)
+    .slice(-20);
+}
+
+function buildSceneFeedbackPrompt(payload) {
+  const context = payload.context || todayTopic();
+  const turns = normalizeScenarioTurns(payload.turns);
+  const transcript = turns.map((turn, index) => `${index + 1}. ${turn.speaker}: ${turn.text}`).join('\n');
+
+  return `You are an English speaking coach reviewing a completed role-play scene.
+
+Learner profile:
+- Chinese learner living in Mexico
+- Wants practical spoken English, natural expression, and better scenario performance
+
+Scenario:
+Role: ${context.role || 'AI role'}
+Topic: ${context.topic || ''}
+Situation: ${context.situation || context.prompt || ''}
+Learner task: ${context.userTask || ''}
+Success goal: ${context.successGoal || ''}
+Useful phrases: ${(context.phraseBank || []).join(', ')}
+
+Full scene transcript:
+${transcript}
+
+Return valid JSON only with:
+overallPerformance: string
+taskCompletion: string
+turnByTurnFeedback: array of {learnerLine:string, issue:string, betterWay:string}
+improvedDialogue: array of {speaker:string, line:string}
+reusableExpressions: array of strings
+nextPracticeFocus: string
+repeatScript: string
+
+Rules:
+- Review the whole scene, not only one sentence.
+- Focus on the learner's lines only for corrections.
+- Mention whether the learner completed the scenario task.
+- Keep explanations in Chinese, but improved lines and expressions in English.
+- Keep turnByTurnFeedback to the 3-5 most useful learner lines.`;
+}
+
+async function requestGeminiSceneFeedback(payload) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  if (!apiKey) {
+    const error = new Error('GEMINI_API_KEY is not configured. Copy .env.example to .env and add your key.');
+    error.code = 'missing_api_key';
+    throw error;
+  }
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: buildSceneFeedbackPrompt(payload) }]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.35
+      }
+    })
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    const error = new Error(`Gemini request failed with status ${response.status}.`);
+    error.details = raw;
+    throw error;
+  }
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { rawText: raw };
+  }
+
+  const text = extractGeminiText(data);
+  if (!text) return { rawResponse: data };
+
+  try {
+    return JSON.parse(stripCodeFence(text));
+  } catch {
+    return { rawText: text };
+  }
+}
+
 async function requestGeminiFeedback(answer, context, recording = null) {
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
@@ -924,6 +1026,28 @@ async function handleApi(req, res) {
         followupAnswer
       });
       sendJson(res, 200, { followups });
+    } catch (error) {
+      sendJson(res, error.code === 'missing_api_key' ? 400 : 502, {
+        error: error.message,
+        details: error.details || null
+      });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/scene-feedback') {
+    const payload = JSON.parse(await readBody(req) || '{}');
+    const turns = normalizeScenarioTurns(payload.turns);
+    if (!turns.some(turn => turn.speaker === 'Learner')) {
+      sendJson(res, 400, { error: 'Complete at least one learner turn before requesting scene feedback.' });
+      return;
+    }
+    try {
+      const feedback = await requestGeminiSceneFeedback({
+        context: payload.context || todayTopic(),
+        turns
+      });
+      sendJson(res, 200, { feedback });
     } catch (error) {
       sendJson(res, error.code === 'missing_api_key' ? 400 : 502, {
         error: error.message,

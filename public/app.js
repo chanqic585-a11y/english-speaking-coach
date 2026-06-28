@@ -9,6 +9,9 @@
   scenarioTurns: [],
   currentAiLine: '',
   scenarioComplete: false,
+  sceneFeedback: null,
+  sceneFeedbackRequested: false,
+  sceneFeedbackLoading: false,
   finalTranscript: '',
   recordingStartedAt: null,
   lastRecordingId: null
@@ -69,6 +72,7 @@ const elements = {
   selectedFollowupQuestion: document.querySelector('#selectedFollowupQuestion'),
   followupAnswer: document.querySelector('#followupAnswer'),
   sendFollowupAnswer: document.querySelector('#sendFollowupAnswer'),
+  requestSceneFeedback: document.querySelector('#requestSceneFeedback'),
   clearFollowups: document.querySelector('#clearFollowups'),
   followupCoaching: document.querySelector('#followupCoaching')
 };
@@ -544,9 +548,110 @@ async function loadHistory() {
 function setFollowupLoading(isLoading) {
   elements.requestFollowups.disabled = isLoading;
   elements.sendFollowupAnswer.disabled = isLoading;
-  elements.followupStatus.textContent = isLoading
-    ? 'AI role is preparing the next scene turn...'
-    : 'Start a role-play scene, answer naturally, and let AI close the conversation.';
+  if (elements.requestSceneFeedback) {
+    elements.requestSceneFeedback.disabled = isLoading || state.sceneFeedbackLoading || !canRequestSceneFeedback();
+  }
+  if (isLoading) {
+    elements.followupStatus.textContent = 'AI role is preparing the next scene turn...';
+  }
+}
+
+function canRequestSceneFeedback() {
+  return state.scenarioTurns.some(turn => turn.speaker === 'Learner' && String(turn.text || '').trim());
+}
+
+function setSceneFeedbackLoading(isLoading) {
+  state.sceneFeedbackLoading = isLoading;
+  if (elements.requestSceneFeedback) {
+    elements.requestSceneFeedback.disabled = isLoading || !canRequestSceneFeedback();
+    elements.requestSceneFeedback.textContent = isLoading ? 'Getting scene feedback...' : 'Get scene feedback';
+  }
+}
+
+function renderSceneFeedback(feedback) {
+  state.sceneFeedback = feedback;
+  if (feedback.rawText || feedback.rawResponse) {
+    return card('Full scene feedback', escapeHtml(feedback.rawText || JSON.stringify(feedback.rawResponse, null, 2)));
+  }
+
+  const turnFeedback = Array.isArray(feedback.turnByTurnFeedback) && feedback.turnByTurnFeedback.length
+    ? `<ul>${feedback.turnByTurnFeedback.map(item => `
+      <li>
+        <strong>${escapeHtml(item.learnerLine || '')}</strong><br>
+        <span>${escapeHtml(item.issue || '')}</span><br>
+        <span>${escapeHtml(item.betterWay || '')}</span>
+      </li>
+    `).join('')}</ul>`
+    : '<p>No sentence-level notes returned.</p>';
+
+  const improvedDialogue = Array.isArray(feedback.improvedDialogue) && feedback.improvedDialogue.length
+    ? `<ul>${feedback.improvedDialogue.map(item => `<li><strong>${escapeHtml(item.speaker || '')}:</strong> ${escapeHtml(item.line || '')}</li>`).join('')}</ul>`
+    : '<p>No improved dialogue returned.</p>';
+
+  const expressions = Array.isArray(feedback.reusableExpressions) && feedback.reusableExpressions.length
+    ? `<ul>${feedback.reusableExpressions.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+    : '<p>No reusable expressions returned.</p>';
+
+  return [
+    card('Full scene feedback', `
+      <p><strong>Overall:</strong> ${escapeHtml(feedback.overallPerformance || 'No overall review returned.')}</p>
+      <p><strong>Task completion:</strong> ${escapeHtml(feedback.taskCompletion || 'No task completion review returned.')}</p>
+    `),
+    card('Turn-by-turn fixes', turnFeedback),
+    card('Improved dialogue', improvedDialogue),
+    card('Reusable expressions', expressions),
+    card('Next practice focus', `<p>${escapeHtml(feedback.nextPracticeFocus || '')}</p>`),
+    card('Scene repeat script', `<p>${escapeHtml(feedback.repeatScript || '')}</p>`)
+  ].join('');
+}
+
+function renderScenarioCoaching(followups) {
+  const coaching = followups.coachingNote
+    ? `<p>${escapeHtml(followups.coachingNote)}</p>`
+    : '<p>Reply naturally to the AI role and keep the scene moving.</p>';
+  const betterWay = followups.betterWay ? `<p><strong>Better way:</strong> ${escapeHtml(followups.betterWay)}</p>` : '';
+  const repeatLine = followups.repeatLine ? `<p><strong>Repeat:</strong> ${escapeHtml(followups.repeatLine)}</p>` : '';
+  const closing = followups.closingSummary ? `<p><strong>Scene summary:</strong> ${escapeHtml(followups.closingSummary)}</p>` : '';
+  const sceneFeedback = state.sceneFeedback ? renderSceneFeedback(state.sceneFeedback) : '';
+
+  elements.followupCoaching.innerHTML = [
+    card('Scene coaching', `${coaching}${betterWay}${repeatLine}${closing}`),
+    sceneFeedback
+  ].filter(Boolean).join('');
+}
+
+async function requestSceneFeedback({ automatic = false } = {}) {
+  if (!canRequestSceneFeedback()) {
+    elements.followupStatus.textContent = 'Complete at least one learner reply before requesting scene feedback.';
+    return;
+  }
+  if (state.sceneFeedbackLoading) return;
+  if (automatic && state.sceneFeedbackRequested) return;
+  if (!automatic && state.sceneFeedback) {
+    elements.followupStatus.textContent = 'Full scene feedback is already ready below.';
+    return;
+  }
+
+  state.sceneFeedbackRequested = true;
+  setSceneFeedbackLoading(true);
+  elements.followupStatus.textContent = automatic
+    ? 'Scene complete. Getting full scene feedback automatically...'
+    : 'Getting full scene feedback for the whole role-play...';
+  try {
+    const data = await api('/api/scene-feedback', {
+      method: 'POST',
+      body: JSON.stringify({ context: state.topic, turns: state.scenarioTurns })
+    });
+    const rendered = renderSceneFeedback(data.feedback || {});
+    const existing = elements.followupCoaching.innerHTML;
+    elements.followupCoaching.innerHTML = `${existing}${rendered}`;
+    elements.followupStatus.textContent = 'Full scene feedback is ready.';
+  } catch (error) {
+    state.sceneFeedbackRequested = false;
+    elements.followupStatus.textContent = `Scene feedback unavailable: ${error.message}`;
+  } finally {
+    setSceneFeedbackLoading(false);
+  }
 }
 
 function renderFollowupResult(followups) {
@@ -569,18 +674,17 @@ function renderFollowupResult(followups) {
     </div>
   `).join('');
 
-  const coaching = followups.coachingNote
-    ? `<p>${escapeHtml(followups.coachingNote)}</p>`
-    : '<p>Reply naturally to the AI role and keep the scene moving.</p>';
-  const betterWay = followups.betterWay ? `<p><strong>Better way:</strong> ${escapeHtml(followups.betterWay)}</p>` : '';
-  const repeatLine = followups.repeatLine ? `<p><strong>Repeat:</strong> ${escapeHtml(followups.repeatLine)}</p>` : '';
-  const closing = followups.closingSummary ? `<p><strong>Scene summary:</strong> ${escapeHtml(followups.closingSummary)}</p>` : '';
-
-  elements.followupCoaching.innerHTML = card('Scene coaching', `${coaching}${betterWay}${repeatLine}${closing}`);
+  renderScenarioCoaching(followups);
   elements.followupResponse.hidden = state.scenarioComplete || !state.currentAiLine;
   elements.selectedFollowupQuestion.textContent = state.scenarioComplete
     ? 'Scene complete.'
     : state.currentAiLine;
+  if (elements.requestSceneFeedback) {
+    elements.requestSceneFeedback.disabled = state.sceneFeedbackLoading || !canRequestSceneFeedback();
+  }
+  if (state.scenarioComplete && canRequestSceneFeedback()) {
+    requestSceneFeedback({ automatic: true });
+  }
 }
 
 async function requestFollowups() {
@@ -596,7 +700,10 @@ async function requestFollowups() {
   ].filter(turn => turn.text);
   state.currentAiLine = state.topic?.openingLine || state.topic?.prompt || '';
   state.scenarioComplete = false;
+  state.sceneFeedback = null;
+  state.sceneFeedbackRequested = false;
   elements.followupResponse.hidden = true;
+  elements.followupCoaching.innerHTML = '';
   setFollowupLoading(true);
   try {
     const data = await api('/api/followups', {
@@ -624,6 +731,8 @@ async function sendFollowupAnswer() {
     return;
   }
 
+  state.sceneFeedback = null;
+  state.sceneFeedbackRequested = false;
   state.scenarioTurns.push({ speaker: 'Learner', text: followupAnswer });
   setFollowupLoading(true);
   try {
@@ -653,10 +762,17 @@ function clearFollowups() {
   state.scenarioTurns = [];
   state.currentAiLine = '';
   state.scenarioComplete = false;
+  state.sceneFeedback = null;
+  state.sceneFeedbackRequested = false;
+  state.sceneFeedbackLoading = false;
   elements.followupQuestions.innerHTML = '';
   elements.followupCoaching.innerHTML = '';
   elements.followupAnswer.value = '';
   elements.followupResponse.hidden = true;
+  if (elements.requestSceneFeedback) {
+    elements.requestSceneFeedback.disabled = true;
+    elements.requestSceneFeedback.textContent = 'Get scene feedback';
+  }
   elements.followupStatus.textContent = 'Start a role-play scene, answer naturally, and let AI close the conversation.';
 }
 
@@ -838,6 +954,7 @@ elements.chatInput.addEventListener('keydown', event => {
 });
 elements.requestFollowups.addEventListener('click', requestFollowups);
 elements.sendFollowupAnswer.addEventListener('click', sendFollowupAnswer);
+elements.requestSceneFeedback.addEventListener('click', () => requestSceneFeedback());
 elements.clearFollowups.addEventListener('click', clearFollowups);
 document.querySelector('#saveSession').addEventListener('click', saveSession);
 document.querySelector('#refreshHistory').addEventListener('click', loadHistory);

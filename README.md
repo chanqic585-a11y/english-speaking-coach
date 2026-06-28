@@ -95,6 +95,10 @@ Use `Scenario conversation` inside the practice panel when you want a complete r
 4. Click `Start scene`.
 5. Reply to the AI role turn by turn until the scene closes naturally.
 
+Every role and learner turn is kept in the scene transcript. During the scene, the app gives light coaching after each reply so the conversation keeps moving. When the AI closes the scene, the app automatically asks Gemini for full scene feedback across the whole transcript, including task completion, useful line-by-line fixes, an improved dialogue, reusable expressions, the next practice focus, and a repeat script.
+
+You can also click `Get scene feedback` after at least one learner reply if you want an early review, but you do not need to click AI feedback after every single turn.
+
 This is intentionally different from `AI Daily Chat`: role scenario conversation stays inside a specific real-life scene and has a beginning, middle, and closing. AI Daily Chat is open-ended daily conversation.
 
 ## AI daily chat

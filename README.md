@@ -1,6 +1,6 @@
 ﻿# English Speaking Coach
 
-A local English speaking coach for self-paced practice. It uses a Workspace Dashboard layout: training steps on the left, practice in the center, AI feedback on the right, and an AI daily chat window for open-ended conversation practice.
+A local English speaking coach for self-paced practice. It uses a Workspace Dashboard layout: scenario role practice in the center, AI feedback on the right, and an AI daily chat window for open-ended conversation practice.
 
 ## Run
 
@@ -44,7 +44,7 @@ Keep this computer awake while using the public link. The quick tunnel is tempor
 
 ## Without an API key
 
-The app still opens, shows topics, records speaking practice, and saves sessions. AI feedback and AI daily chat will show setup guidance until `GEMINI_API_KEY` is configured.
+The app still opens, shows role scenarios, records speaking practice, and saves sessions. AI feedback, scenario conversation, and AI daily chat will show setup guidance until `GEMINI_API_KEY` is configured.
 
 ## AI feedback provider
 
@@ -85,17 +85,17 @@ When Gemini feedback is enabled, recorded sessions also send the saved audio to 
 
 Recording uses the browser MediaRecorder API. Live transcription uses browser SpeechRecognition when available, so support varies by browser. The public HTTPS tunnel generally works better for microphone and speech recognition permissions than plain local network links on some phones.
 
-## Topic follow-up mode
+## Role scenario conversation
 
-Use `Topic follow-up` inside the daily practice panel when you want the current prompt to feel more like a real conversation.
+Use `Scenario conversation` inside the practice panel when you want a complete role-play scene.
 
-1. Answer the current topic in the main answer box.
-2. Click `Ask follow-up questions`.
-3. Pick one AI follow-up question.
-4. Answer it in English.
-5. Send the follow-up answer to get light coaching and more topic-bound questions.
+1. Pick a role scenario with `New topic`, such as interviewer, hotel front desk, airport staff, foreign coworker, client, or gym friend.
+2. Read the situation, task, useful phrases, and AI opening line.
+3. Answer the opening in the main answer box.
+4. Click `Start scene`.
+5. Reply to the AI role turn by turn until the scene closes naturally.
 
-This is intentionally different from `AI Daily Chat`: topic follow-up stays attached to the current speaking prompt, while AI Daily Chat is open-ended daily conversation.
+This is intentionally different from `AI Daily Chat`: role scenario conversation stays inside a specific real-life scene and has a beginning, middle, and closing. AI Daily Chat is open-ended daily conversation.
 
 ## AI daily chat
 

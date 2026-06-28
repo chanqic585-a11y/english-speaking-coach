@@ -22,34 +22,84 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml; charset=utf-8'
 };
 
-const topics = [
+const scenarios = [
   {
-    focus: 'Opinion + logic',
-    topic: 'Living in Mexico',
-    prompt: 'What is one thing you have learned from living in Mexico?',
-    sentenceFrame: 'I used to think ..., but after ..., I realized ...',
-    phraseBank: ['At first, I thought...', 'Over time, I noticed...', 'One example is...', 'That experience taught me...']
+    id: 'interviewer',
+    focus: 'Interview confidence',
+    topic: 'Job interview',
+    role: 'Interviewer',
+    situation: 'You are in a job interview for an international role. The interviewer wants clear examples and confident answers.',
+    userTask: 'Introduce your experience, explain your strengths, and answer follow-up questions with specific examples.',
+    openingLine: 'Thanks for coming in today. Could you start by telling me a little about yourself and why you are interested in this role?',
+    prompt: 'The interviewer asks you to introduce yourself and explain why you are interested in the role.',
+    sentenceFrame: 'I have experience in ..., and I am interested in this role because ...',
+    successGoal: 'Give specific examples, sound confident, and ask one appropriate question before the scene ends.',
+    phraseBank: ['I have experience in...', 'One strength I can bring is...', 'A specific example is...', 'I am interested in this role because...']
   },
   {
-    focus: 'Explaining reasons',
-    topic: 'Daily communication',
-    prompt: 'Why is speaking practice harder than reading or listening practice?',
-    sentenceFrame: 'There are two main reasons. The first is ..., and the second is ...',
-    phraseBank: ['One reason is that...', 'Another factor is...', 'This makes it difficult to...', 'As a result...']
+    id: 'hotel-front-desk',
+    focus: 'Travel service conversation',
+    topic: 'Hotel check-in',
+    role: 'Hotel front desk',
+    situation: 'You arrive at a hotel and need to check in, ask about breakfast, and solve a small room preference issue.',
+    userTask: 'Check in politely, provide booking details, ask about services, and respond to staff questions.',
+    openingLine: 'Good evening. Welcome to our hotel. Do you have a reservation with us?',
+    prompt: 'The hotel front desk asks whether you have a reservation.',
+    sentenceFrame: 'Yes, I have a reservation under the name ..., and I would like to ask about ...',
+    successGoal: 'Complete check-in, ask one service question, and close the conversation politely.',
+    phraseBank: ['I have a reservation under...', 'Could I ask about...', 'Would it be possible to...', 'Thank you for your help.']
   },
   {
-    focus: 'Story structure',
-    topic: 'A small challenge',
-    prompt: 'Describe a recent moment when you had to communicate in another language.',
-    sentenceFrame: 'A few days ago ..., at first ..., later ..., in the end ...',
-    phraseBank: ['A few days ago...', 'At first, I felt...', 'What helped me was...', 'In the end...']
+    id: 'airport-staff',
+    focus: 'Airport problem solving',
+    topic: 'Airport check-in',
+    role: 'Airport staff',
+    situation: 'You are at the airport. You need to check in, ask about baggage, and handle a possible delay or gate change.',
+    userTask: 'Explain your travel situation, ask practical questions, and confirm next steps.',
+    openingLine: 'Good morning. May I see your passport and booking reference, please?',
+    prompt: 'The airport staff asks for your passport and booking reference.',
+    sentenceFrame: 'Sure, here is my passport. I would also like to ask about ...',
+    successGoal: 'Confirm baggage, boarding time, and the next step before ending the scene.',
+    phraseBank: ['May I ask about my baggage?', 'Is there any delay?', 'Which gate should I go to?', 'Could you confirm the boarding time?']
   },
   {
-    focus: 'Comparison',
-    topic: 'English and Spanish',
-    prompt: 'How does learning Spanish in Mexico affect your English learning?',
-    sentenceFrame: 'Compared with ..., I find ... because ...',
-    phraseBank: ['Compared with...', 'In contrast...', 'The biggest difference is...', 'This helps me because...']
+    id: 'foreign-coworker',
+    focus: 'Workplace small talk and updates',
+    topic: 'Talking with a foreign coworker',
+    role: 'Foreign coworker',
+    situation: 'You meet a foreign coworker and need to make small talk, explain your current work, and ask about their project.',
+    userTask: 'Build rapport, give a short work update, and keep the conversation natural.',
+    openingLine: 'Hey, good to see you. How is your week going so far?',
+    prompt: 'Your foreign coworker asks how your week is going.',
+    sentenceFrame: 'It has been ..., because I have been working on ...',
+    successGoal: 'Make small talk, share one useful update, and ask a natural follow-up question.',
+    phraseBank: ['It has been a busy week...', 'I am currently working on...', 'How about your project?', 'Let me know if I can help with...']
+  },
+  {
+    id: 'client-meeting',
+    focus: 'Client meeting clarity',
+    topic: 'Client meeting',
+    role: 'Client',
+    situation: 'You are in a client meeting. The client wants to understand your plan, timeline, and how you will handle concerns.',
+    userTask: 'Explain your proposal, clarify requirements, and respond to one concern professionally.',
+    openingLine: 'Thanks for joining the meeting. Could you walk me through your plan and the main timeline?',
+    prompt: 'The client asks you to explain your plan and timeline.',
+    sentenceFrame: 'Our plan is to ..., and the timeline would be ...',
+    successGoal: 'Explain the plan clearly, confirm one requirement, and close with next steps.',
+    phraseBank: ['Our plan is to...', 'The main timeline is...', 'Could I confirm one requirement?', 'The next step would be...']
+  },
+  {
+    id: 'gym-friend',
+    focus: 'Casual conversation',
+    topic: 'Gym conversation',
+    role: 'Gym friend',
+    situation: 'You meet a friendly person at the gym and talk about exercise habits, goals, and how you feel after training.',
+    userTask: 'Have a relaxed conversation, describe your routine, and respond naturally to friendly questions.',
+    openingLine: 'Hey, I think I have seen you here before. What kind of workout are you doing today?',
+    prompt: 'A gym friend asks what kind of workout you are doing today.',
+    sentenceFrame: 'Today I am focusing on ..., because I want to ...',
+    successGoal: 'Keep the conversation friendly, explain your goal, and end naturally.',
+    phraseBank: ['Today I am focusing on...', 'I am trying to improve...', 'How often do you train?', 'Nice talking with you. See you around.']
   }
 ];
 
@@ -222,12 +272,12 @@ function todayTopic() {
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 0);
   const day = Math.floor((now - start) / 86400000);
-  return topics[day % topics.length];
+  return scenarios[day % scenarios.length];
 }
 
 function randomTopic(excludePrompt = '') {
-  const candidates = topics.filter(topic => topic.prompt !== excludePrompt);
-  const pool = candidates.length ? candidates : topics;
+  const candidates = scenarios.filter(topic => topic.prompt !== excludePrompt);
+  const pool = candidates.length ? candidates : scenarios;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -383,48 +433,67 @@ function buildFollowupPrompt(payload) {
   const firstAnswer = String(payload.answer || '').trim();
   const selectedQuestion = String(payload.question || '').trim();
   const followupAnswer = String(payload.followupAnswer || '').trim();
-  const mode = selectedQuestion && followupAnswer ? 'respond' : 'questions';
+  const previousTurns = Array.isArray(payload.turns) ? payload.turns.slice(-8) : [];
+  const mode = selectedQuestion && followupAnswer ? 'continue' : 'start';
+  const turnLog = previousTurns.map(turn => `${turn.speaker || 'Learner'}: ${turn.text || ''}`).join('\n');
 
-  return `You are an English speaking examiner and friendly conversation coach.
+  return `You are role-playing a realistic English speaking scene.
 
-The learner is a Chinese speaker living in Mexico. Keep the practice focused on the current speaking topic, not free chat.
+The learner is a Chinese speaker living in Mexico. You must stay in role and keep the scene realistic. Do not become a generic tutor during the dialogue.
 
-Current topic:
+Scenario:
 Focus: ${context.focus || ''}
 Topic: ${context.topic || ''}
-Prompt: ${context.prompt || ''}
-Sentence frame: ${context.sentenceFrame || ''}
+AI role: ${context.role || 'Conversation partner'}
+Situation: ${context.situation || context.prompt || ''}
+Learner task: ${context.userTask || ''}
+Success goal: ${context.successGoal || ''}
+Opening line: ${context.openingLine || context.prompt || ''}
+Useful phrases: ${(context.phraseBank || []).join(', ')}
 
 Learner's first answer:
 ${firstAnswer || '[No answer provided]'}
 
-${mode === 'respond' ? `Selected follow-up question:
+Previous scene turns:
+${turnLog || '[No previous turns]'}
+
+${mode === 'continue' ? `Your previous line or question:
 ${selectedQuestion}
 
-Learner's follow-up answer:
+Learner's latest answer:
 ${followupAnswer}` : ''}
 
 Return valid JSON only.
 
-If mode is "questions", return:
+If mode is "start", return:
 {
-  "coachingNote": "one short Chinese sentence explaining what the follow-up practice should train",
-  "questions": ["question 1", "question 2", "question 3"]
+  "stage": "opening",
+  "aiLine": "one natural in-role line that starts or continues the scene",
+  "coachingNote": "one short Chinese sentence explaining the conversation goal",
+  "betterWay": "",
+  "repeatLine": "",
+  "isComplete": false,
+  "closingSummary": ""
 }
 
-If mode is "respond", return:
+If mode is "continue", return:
 {
+  "stage": "middle|closing",
+  "aiLine": "one natural in-role line that reacts to the learner and asks the next necessary question, or closes the scene",
   "coachingNote": "one short Chinese sentence with light correction or encouragement",
   "betterWay": "one improved English sentence based on the learner's follow-up answer",
   "repeatLine": "one short English sentence the learner can repeat aloud",
-  "questions": ["next question 1", "next question 2"]
+  "isComplete": true or false,
+  "closingSummary": "if isComplete is true, summarize in Chinese what the learner accomplished and one thing to improve; otherwise empty string"
 }
 
 Rules:
-- Questions must be natural spoken English.
-- Questions must stay connected to the current topic and the learner's answer.
-- Do not ask broad unrelated daily-chat questions.
-- Make questions suitable for IELTS Speaking Part 3 or real conversation.
+- Speak as the AI role, not as an app.
+- Move the scene forward one turn at a time.
+- Do not list multiple questions.
+- If the learner has achieved the success goal or the scene has enough information, close naturally.
+- Closing should feel like the real role ending the interaction.
+- Keep aiLine concise: 1-3 sentences.
 - Use Chinese only in coachingNote.`;
 }
 
@@ -843,8 +912,8 @@ async function handleApi(req, res) {
       sendJson(res, 400, { error: 'Answer the current topic first, then ask for follow-up questions.' });
       return;
     }
-    if ((question && !followupAnswer) || (!question && followupAnswer)) {
-      sendJson(res, 400, { error: 'Send both the selected follow-up question and your follow-up answer.' });
+    if (followupAnswer && !question) {
+      sendJson(res, 400, { error: 'Send the AI role line you are answering.' });
       return;
     }
     try {

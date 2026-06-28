@@ -35,18 +35,18 @@
           <p id="todayTopic">Preparing your session</p>
         </div>
         <ol class="steps" id="steps">
-          <li class="active"><span>1</span><div><strong>Warm-up</strong><small>Choose a topic</small></div></li>
-          <li><span>2</span><div><strong>Speak</strong><small>Record or type</small></div></li>
+          <li class="active"><span>1</span><div><strong>Role</strong><small>Choose a scenario</small></div></li>
+          <li><span>2</span><div><strong>Opening</strong><small>Reply to the role</small></div></li>
           <li><span>3</span><div><strong>AI feedback</strong><small>Improve expression</small></div></li>
-          <li><span>4</span><div><strong>Repeat better</strong><small>Practice aloud</small></div></li>
-          <li><span>5</span><div><strong>Free chat</strong><small>Talk as long as you want</small></div></li>
+          <li><span>4</span><div><strong>Scene turns</strong><small>Continue naturally</small></div></li>
+          <li><span>5</span><div><strong>Closing</strong><small>Finish the scene</small></div></li>
         </ol>
       </aside>
 
       <section class="panel practice-panel" aria-label="Practice workspace">
         <div class="panel-header">
           <span class="label">Practice</span>
-          <button type="button" class="secondary-button" id="loadTopic">New topic</button>
+          <button type="button" class="secondary-button" id="loadTopic">New scenario</button>
         </div>
         <div class="prompt-block">
           <h2 id="promptText">Loading today's prompt...</h2>
@@ -70,22 +70,22 @@
           <button type="button" class="primary-button" id="requestFeedback">Send for AI feedback</button>
           <button type="button" class="secondary-button" id="clearAnswer">Clear</button>
         </div>
-        <div class="followup-box" aria-label="Topic follow-up mode">
+        <div class="followup-box" aria-label="Scenario conversation mode">
           <div class="panel-header compact">
             <div>
-              <span class="label">Topic follow-up</span>
-              <p class="muted" id="followupStatus">Answer the topic, then let AI ask follow-up questions.</p>
+              <span class="label">Scenario conversation</span>
+              <p class="muted" id="followupStatus">Start a role-play scene, answer naturally, and let AI close the conversation.</p>
             </div>
-            <button type="button" class="secondary-button compact-button" id="requestFollowups">Ask follow-up questions</button>
+            <button type="button" class="secondary-button compact-button" id="requestFollowups">Start scene</button>
           </div>
           <div class="followup-questions" id="followupQuestions"></div>
           <div class="followup-response" id="followupResponse" hidden>
-            <span class="label">Your follow-up answer</span>
+            <span class="label">Your scene reply</span>
             <p class="muted" id="selectedFollowupQuestion"></p>
-            <textarea id="followupAnswer" rows="4" placeholder="Answer the selected follow-up question in English..."></textarea>
+            <textarea id="followupAnswer" rows="4" placeholder="Reply to the AI role in English..."></textarea>
             <div class="practice-actions">
-              <button type="button" class="primary-button" id="sendFollowupAnswer">Send follow-up answer</button>
-              <button type="button" class="secondary-button" id="clearFollowups">Clear follow-up</button>
+              <button type="button" class="primary-button" id="sendFollowupAnswer">Send scene reply</button>
+              <button type="button" class="secondary-button" id="clearFollowups">Reset scene</button>
             </div>
           </div>
           <div class="followup-coaching" id="followupCoaching"></div>

@@ -41,9 +41,11 @@ button { cursor: pointer; }
 .followup-box { margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-soft); padding: 12px; display: grid; gap: 10px; }
 .followup-box .panel-header { margin-bottom: 0; }
 .followup-questions { display: grid; gap: 8px; }
-.followup-question { width: 100%; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: center; text-align: left; border: 1px solid #c7d2fe; border-radius: 8px; background: #eef2ff; color: #1e1b4b; padding: 10px; }
-.followup-question span { width: 24px; height: 24px; display: inline-grid; place-items: center; border-radius: 50%; background: #fff; color: var(--accent); font-weight: 800; }
-.followup-question strong { line-height: 1.35; overflow-wrap: anywhere; }
+.scenario-turn { border: 1px solid var(--line); border-radius: 8px; background: #eef2ff; padding: 10px; max-width: 92%; }
+.scenario-turn.user { justify-self: end; background: #eff6ff; border-color: #bfdbfe; }
+.scenario-turn.assistant { justify-self: start; background: #f0fdf4; border-color: #bbf7d0; }
+.scenario-turn span { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0; }
+.scenario-turn p { margin: 0; color: #334155; line-height: 1.45; overflow-wrap: anywhere; }
 .followup-response { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
 .followup-response p { margin: 0; line-height: 1.4; }
 .followup-coaching { display: grid; gap: 8px; }

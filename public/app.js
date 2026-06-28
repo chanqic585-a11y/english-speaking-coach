@@ -6,8 +6,9 @@
   speechRecognition: null,
   chatRecognition: null,
   chatMessages: [],
-  followupQuestions: [],
-  selectedFollowupQuestion: '',
+  scenarioTurns: [],
+  currentAiLine: '',
+  scenarioComplete: false,
   finalTranscript: '',
   recordingStartedAt: null,
   lastRecordingId: null
@@ -89,15 +90,18 @@ async function api(path, options = {}) {
 function renderTopic(topic) {
   state.topic = topic;
   elements.todayFocus.textContent = topic.focus;
-  elements.todayTopic.textContent = topic.topic;
-  elements.promptText.textContent = topic.prompt;
-  elements.sentenceFrame.textContent = topic.sentenceFrame;
+  elements.todayTopic.textContent = topic.role ? `${topic.role} - ${topic.topic}` : topic.topic;
+  elements.promptText.textContent = topic.role ? `${topic.role}: ${topic.situation}` : topic.prompt;
+  elements.sentenceFrame.textContent = topic.userTask
+    ? `Your task: ${topic.userTask} Opening: ${topic.openingLine}`
+    : topic.sentenceFrame;
   elements.phraseBank.innerHTML = '';
   for (const phrase of topic.phraseBank || []) {
     const item = document.createElement('span');
     item.textContent = phrase;
     elements.phraseBank.appendChild(item);
   }
+  clearFollowups();
 }
 
 function renderSettings(settings) {
@@ -541,83 +545,86 @@ function setFollowupLoading(isLoading) {
   elements.requestFollowups.disabled = isLoading;
   elements.sendFollowupAnswer.disabled = isLoading;
   elements.followupStatus.textContent = isLoading
-    ? 'AI is preparing topic follow-up questions...'
-    : 'Answer the topic, then let AI ask follow-up questions.';
-}
-
-function renderFollowupQuestions(questions) {
-  state.followupQuestions = Array.isArray(questions) ? questions.filter(Boolean).slice(0, 3) : [];
-  if (!state.followupQuestions.length) {
-    elements.followupQuestions.innerHTML = '<p class="muted">No follow-up questions yet.</p>';
-    return;
-  }
-
-  elements.followupQuestions.innerHTML = state.followupQuestions.map((question, index) => `
-    <button type="button" class="followup-question" data-question="${escapeHtml(question)}">
-      <span>${index + 1}</span>
-      <strong>${escapeHtml(question)}</strong>
-    </button>
-  `).join('');
+    ? 'AI role is preparing the next scene turn...'
+    : 'Start a role-play scene, answer naturally, and let AI close the conversation.';
 }
 
 function renderFollowupResult(followups) {
   if (followups.rawText || followups.rawResponse) {
-    elements.followupCoaching.innerHTML = card('Raw follow-up response', escapeHtml(followups.rawText || JSON.stringify(followups.rawResponse, null, 2)));
+    elements.followupCoaching.innerHTML = card('Raw scenario response', escapeHtml(followups.rawText || JSON.stringify(followups.rawResponse, null, 2)));
     return;
   }
 
+  const aiLine = followups.aiLine || (Array.isArray(followups.questions) ? followups.questions[0] : '');
+  if (aiLine) {
+    state.currentAiLine = aiLine;
+    state.scenarioTurns.push({ speaker: state.topic?.role || 'AI role', text: aiLine });
+  }
+  state.scenarioComplete = Boolean(followups.isComplete);
+
+  elements.followupQuestions.innerHTML = state.scenarioTurns.map(turn => `
+    <div class="scenario-turn ${turn.speaker === 'Learner' ? 'user' : 'assistant'}">
+      <span>${escapeHtml(turn.speaker)}</span>
+      <p>${escapeHtml(turn.text)}</p>
+    </div>
+  `).join('');
+
   const coaching = followups.coachingNote
     ? `<p>${escapeHtml(followups.coachingNote)}</p>`
-    : '<p>Choose one follow-up question and answer it aloud or in writing.</p>';
+    : '<p>Reply naturally to the AI role and keep the scene moving.</p>';
   const betterWay = followups.betterWay ? `<p><strong>Better way:</strong> ${escapeHtml(followups.betterWay)}</p>` : '';
   const repeatLine = followups.repeatLine ? `<p><strong>Repeat:</strong> ${escapeHtml(followups.repeatLine)}</p>` : '';
+  const closing = followups.closingSummary ? `<p><strong>Scene summary:</strong> ${escapeHtml(followups.closingSummary)}</p>` : '';
 
-  elements.followupCoaching.innerHTML = card('Follow-up coaching', `${coaching}${betterWay}${repeatLine}`);
-  renderFollowupQuestions(followups.questions || []);
+  elements.followupCoaching.innerHTML = card('Scene coaching', `${coaching}${betterWay}${repeatLine}${closing}`);
+  elements.followupResponse.hidden = state.scenarioComplete || !state.currentAiLine;
+  elements.selectedFollowupQuestion.textContent = state.scenarioComplete
+    ? 'Scene complete.'
+    : state.currentAiLine;
 }
 
 async function requestFollowups() {
   const answer = elements.answerInput.value.trim();
   if (answer.length < 10) {
-    elements.followupStatus.textContent = 'Answer the current topic first, then ask for follow-up questions.';
+    elements.followupStatus.textContent = 'Answer the scenario opening first, then start the role-play scene.';
     return;
   }
 
+  state.scenarioTurns = [
+    { speaker: state.topic?.role || 'AI role', text: state.topic?.openingLine || state.topic?.prompt || '' },
+    { speaker: 'Learner', text: answer }
+  ].filter(turn => turn.text);
+  state.currentAiLine = state.topic?.openingLine || state.topic?.prompt || '';
+  state.scenarioComplete = false;
+  elements.followupResponse.hidden = true;
   setFollowupLoading(true);
   try {
     const data = await api('/api/followups', {
       method: 'POST',
-      body: JSON.stringify({ answer, context: state.topic })
+      body: JSON.stringify({ answer, context: state.topic, turns: state.scenarioTurns })
     });
     renderFollowupResult(data.followups || {});
-    elements.followupStatus.textContent = 'Choose one question and continue the topic conversation.';
+    elements.followupStatus.textContent = 'Reply to the AI role to continue the scene.';
   } catch (error) {
-    elements.followupStatus.textContent = `Follow-up unavailable: ${error.message}`;
+    elements.followupStatus.textContent = `Scenario unavailable: ${error.message}`;
   } finally {
     setFollowupLoading(false);
   }
 }
 
-function selectFollowupQuestion(question) {
-  state.selectedFollowupQuestion = question;
-  elements.selectedFollowupQuestion.textContent = question;
-  elements.followupResponse.hidden = false;
-  elements.followupAnswer.value = '';
-  elements.followupAnswer.focus();
-}
-
 async function sendFollowupAnswer() {
   const answer = elements.answerInput.value.trim();
   const followupAnswer = elements.followupAnswer.value.trim();
-  if (!state.selectedFollowupQuestion) {
-    elements.followupStatus.textContent = 'Choose one follow-up question first.';
+  if (!state.currentAiLine) {
+    elements.followupStatus.textContent = 'Start the scene first.';
     return;
   }
   if (followupAnswer.length < 5) {
-    elements.followupStatus.textContent = 'Write or say a short answer to the follow-up question first.';
+    elements.followupStatus.textContent = 'Write or say a short reply to the AI role first.';
     return;
   }
 
+  state.scenarioTurns.push({ speaker: 'Learner', text: followupAnswer });
   setFollowupLoading(true);
   try {
     const data = await api('/api/followups', {
@@ -625,30 +632,32 @@ async function sendFollowupAnswer() {
       body: JSON.stringify({
         answer,
         context: state.topic,
-        question: state.selectedFollowupQuestion,
-        followupAnswer
+        question: state.currentAiLine,
+        followupAnswer,
+        turns: state.scenarioTurns
       })
     });
     renderFollowupResult(data.followups || {});
     elements.followupAnswer.value = '';
-    elements.followupResponse.hidden = true;
-    state.selectedFollowupQuestion = '';
-    elements.followupStatus.textContent = 'Good. Pick another follow-up question to keep speaking.';
+    elements.followupStatus.textContent = state.scenarioComplete
+      ? 'Scene complete. Review the summary or start a new scene.'
+      : 'Good. Reply to the next role line to continue.';
   } catch (error) {
-    elements.followupStatus.textContent = `Follow-up unavailable: ${error.message}`;
+    elements.followupStatus.textContent = `Scenario unavailable: ${error.message}`;
   } finally {
     setFollowupLoading(false);
   }
 }
 
 function clearFollowups() {
-  state.followupQuestions = [];
-  state.selectedFollowupQuestion = '';
+  state.scenarioTurns = [];
+  state.currentAiLine = '';
+  state.scenarioComplete = false;
   elements.followupQuestions.innerHTML = '';
   elements.followupCoaching.innerHTML = '';
   elements.followupAnswer.value = '';
   elements.followupResponse.hidden = true;
-  elements.followupStatus.textContent = 'Answer the topic, then let AI ask follow-up questions.';
+  elements.followupStatus.textContent = 'Start a role-play scene, answer naturally, and let AI close the conversation.';
 }
 
 function chatInputMode() {
@@ -828,11 +837,6 @@ elements.chatInput.addEventListener('keydown', event => {
   }
 });
 elements.requestFollowups.addEventListener('click', requestFollowups);
-elements.followupQuestions.addEventListener('click', event => {
-  const button = event.target.closest('.followup-question');
-  if (!button) return;
-  selectFollowupQuestion(button.dataset.question || '');
-});
 elements.sendFollowupAnswer.addEventListener('click', sendFollowupAnswer);
 elements.clearFollowups.addEventListener('click', clearFollowups);
 document.querySelector('#saveSession').addEventListener('click', saveSession);

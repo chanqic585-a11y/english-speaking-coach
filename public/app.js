@@ -14,7 +14,12 @@
   sceneFeedbackLoading: false,
   finalTranscript: '',
   recordingStartedAt: null,
-  lastRecordingId: null
+  lastRecordingId: null,
+  isRecording: false,
+  holdRecording: false,
+  suppressRecordClick: false,
+  stopAfterRecordingStarts: false,
+  holdTimer: null
 };
 
 const elements = {
@@ -41,8 +46,7 @@ const elements = {
   vocabCount: document.querySelector('#vocabCount'),
   reviewList: document.querySelector('#reviewList'),
   wordBank: document.querySelector('#wordBank'),
-  startRecording: document.querySelector('#startRecording'),
-  stopRecording: document.querySelector('#stopRecording'),
+  recordButton: document.querySelector('#recordButton'),
   recordingStatus: document.querySelector('#recordingStatus'),
   recordingPlayback: document.querySelector('#recordingPlayback'),
   feedbackModal: document.querySelector('#feedbackModal'),
@@ -350,8 +354,10 @@ function getSpeechRecognition() {
 }
 
 function setRecordingUi(isRecording, message) {
-  elements.startRecording.disabled = isRecording;
-  elements.stopRecording.disabled = !isRecording;
+  state.isRecording = isRecording;
+  elements.recordButton.classList.toggle('recording', isRecording);
+  elements.recordButton.querySelector('span').textContent = isRecording ? 'Tap to Stop' : 'Tap to Record';
+  elements.recordButton.querySelector('small').textContent = isRecording ? 'Recording now' : 'Hold to Speak';
   elements.recordingStatus.textContent = message;
 }
 
@@ -388,7 +394,7 @@ function startSpeechRecognition() {
     elements.answerInput.value = [state.finalTranscript, interim].filter(Boolean).join(' ');
   };
   recognition.onerror = event => {
-    elements.recordingStatus.textContent = `Recording audio. Speech recognition issue: ${event.error || 'unavailable'}.`;
+    elements.recordingStatus.textContent = `Recording audio. Speech recognition issue: ${event.error || 'unavailable'}. You can still edit or type the transcript after stopping.`;
   };
   try {
     recognition.start();
@@ -399,6 +405,7 @@ function startSpeechRecognition() {
 }
 
 async function startRecording() {
+  if (state.isRecording) return;
   if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
     renderFeedbackError(new Error('This browser does not support built-in recording. Try Chrome or the public HTTPS link on your phone.'));
     return;
@@ -415,18 +422,27 @@ async function startRecording() {
     };
     recorder.onstop = () => {
       stream.getTracks().forEach(track => track.stop());
-      saveRecordingAndRequestFeedback().catch(renderFeedbackError);
+      saveRecordingDraft().catch(renderFeedbackError);
     };
     state.mediaRecorder = recorder;
     recorder.start();
     startSpeechRecognition();
-    setRecordingUi(true, 'Recording. Speak your answer clearly, then stop to save audio and request feedback.');
+    setRecordingUi(true, 'Recording. Speak naturally; live transcript will appear here when supported.');
+    if (state.stopAfterRecordingStarts) {
+      state.stopAfterRecordingStarts = false;
+      window.setTimeout(stopRecording, 150);
+    }
   } catch (error) {
+    state.stopAfterRecordingStarts = false;
     renderFeedbackError(new Error(`Microphone permission issue: ${error.message || 'access denied'}`));
   }
 }
 
 function stopRecording() {
+  if (!state.isRecording && state.mediaRecorder?.state !== 'recording') {
+    state.stopAfterRecordingStarts = true;
+    return;
+  }
   if (state.speechRecognition) {
     try { state.speechRecognition.stop(); } catch {}
     state.speechRecognition = null;
@@ -434,10 +450,10 @@ function stopRecording() {
   if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
     state.mediaRecorder.stop();
   }
-  setRecordingUi(false, 'Saving recording and preparing feedback...');
+  setRecordingUi(false, 'Saving recording and transcript...');
 }
 
-async function saveRecordingAndRequestFeedback() {
+async function saveRecordingDraft() {
   const blob = new Blob(state.audioChunks, { type: state.mediaRecorder?.mimeType || 'audio/webm' });
   const transcript = elements.answerInput.value.trim();
   elements.recordingPlayback.src = URL.createObjectURL(blob);
@@ -459,8 +475,45 @@ async function saveRecordingAndRequestFeedback() {
   });
 
   state.lastRecordingId = saved.recording.id;
-  elements.recordingStatus.textContent = `Recording saved: ${saved.recording.fileName}. Asking Gemini for feedback...`;
-  await requestFeedback();
+  elements.recordingStatus.textContent = transcript
+    ? `Recording saved: ${saved.recording.fileName}. Review or edit the transcript, then submit feedback.`
+    : `Recording saved: ${saved.recording.fileName}. Type or edit the transcript if needed, then submit feedback.`;
+}
+
+function toggleRecording() {
+  if (state.isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+}
+
+function startHoldToSpeak(event) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  if (state.isRecording) return;
+  window.clearTimeout(state.holdTimer);
+  state.holdTimer = window.setTimeout(() => {
+    state.holdRecording = true;
+    state.suppressRecordClick = true;
+    startRecording();
+  }, 420);
+}
+
+function endHoldToSpeak() {
+  window.clearTimeout(state.holdTimer);
+  state.holdTimer = null;
+  if (state.holdRecording) {
+    state.holdRecording = false;
+    stopRecording();
+  }
+}
+
+function handleRecordClick() {
+  if (state.suppressRecordClick) {
+    state.suppressRecordClick = false;
+    return;
+  }
+  toggleRecording();
 }
 
 function card(title, body) {
@@ -483,7 +536,7 @@ async function loadInitialData() {
 async function requestFeedback() {
   const answer = elements.answerInput.value.trim();
   if (answer.length < 20 && !state.lastRecordingId) {
-    renderFeedbackError(new Error('Please enter a longer answer or record audio before requesting feedback.'));
+    renderFeedbackError(new Error('Please enter a longer transcript or record audio before submitting feedback.'));
     return;
   }
 
@@ -961,12 +1014,20 @@ document.querySelector('#refreshHistory').addEventListener('click', loadHistory)
 document.querySelector('#refreshVocabulary').addEventListener('click', loadVocabulary);
 elements.vocabForm.addEventListener('submit', addVocabulary);
 elements.reviewList.addEventListener('click', reviewVocabulary);
-elements.startRecording.addEventListener('click', startRecording);
-elements.stopRecording.addEventListener('click', stopRecording);
+elements.recordButton.addEventListener('pointerdown', startHoldToSpeak);
+elements.recordButton.addEventListener('pointerup', endHoldToSpeak);
+elements.recordButton.addEventListener('pointercancel', endHoldToSpeak);
+elements.recordButton.addEventListener('pointerleave', endHoldToSpeak);
+elements.recordButton.addEventListener('click', handleRecordClick);
 document.querySelector('#clearAnswer').addEventListener('click', () => {
+  if (state.isRecording) {
+    stopRecording();
+  }
   elements.answerInput.value = '';
   state.lastRecordingId = null;
+  state.finalTranscript = '';
   elements.recordingPlayback.hidden = true;
+  setRecordingUi(false, 'Tap to record, or press and hold while speaking. Review the transcript before feedback.');
   clearFollowups();
 });
 document.querySelector('#loadTopic').addEventListener('click', async () => {

@@ -68,11 +68,13 @@ OPENAI_MODEL=gpt-4.1-mini
 
 Use the `Speaking recorder` inside the practice panel:
 
-1. Click `Record`.
+1. Tap `Tap to Record`, or press and hold `Hold to Speak`.
 2. Speak your answer.
-3. Click `Stop, save, and get feedback`.
+3. Tap again or release to stop.
+4. Review or edit the transcript in the answer box.
+5. Click `Submit feedback`.
 
-The app saves the audio locally under `data/recordings/`, places the transcript into the answer box when browser speech recognition is available, and then sends that transcript through the existing AI feedback flow.
+The app saves the audio locally under `data/recordings/` and places the transcript into the answer box when browser speech recognition is available. Feedback is not submitted automatically after recording, so you can correct the transcript before Gemini reviews it.
 
 AI feedback opens in a dialog automatically. The dialog shows request progress first, then highlights pronunciation score, fluency score, and the repeat script before the detailed grammar and logic notes.
 

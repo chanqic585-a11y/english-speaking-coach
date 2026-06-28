@@ -60,7 +60,28 @@ button { cursor: pointer; }
 .phrase-bank span { display: inline-flex; padding: 7px 10px; border-radius: 999px; background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; font-size: 14px; }
 .voice-lab { display: grid; gap: 10px; margin: 14px 0; border: 1px solid #bbf7d0; background: #f0fdf4; border-radius: 8px; padding: 12px; }
 .voice-lab p { margin: 4px 0 0; color: #166534; line-height: 1.45; }
-.recording-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.recording-actions { display: grid; gap: 8px; }
+.record-button {
+  width: 100%;
+  min-height: 92px;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  border: 1px solid #93c5fd;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 14px 34px rgba(37, 99, 235, 0.22);
+  touch-action: manipulation;
+  user-select: none;
+}
+.record-button span { font-size: 22px; font-weight: 800; line-height: 1.1; }
+.record-button small { font-size: 13px; font-weight: 800; opacity: 0.86; }
+.record-button.recording {
+  background: #dc2626;
+  border-color: #fecaca;
+  box-shadow: 0 14px 34px rgba(220, 38, 38, 0.22);
+}
 .voice-lab audio { width: 100%; max-width: 100%; }
 .field-label { display: block; margin: 14px 0 8px; font-weight: 700; }
 textarea, input { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); padding: 12px; resize: vertical; outline: none; }

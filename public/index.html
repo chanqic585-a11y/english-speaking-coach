@@ -55,19 +55,21 @@
         <div class="phrase-bank" id="phraseBank" aria-label="Phrase bank"></div>
         <div class="voice-lab" aria-label="Built-in speaking practice">
           <div>
-            <span class="label">Speaking recorder</span>
-            <p id="recordingStatus">Ready to record. Speech recognition works when your browser supports it.</p>
+            <span class="label">Speaking practice</span>
+            <p id="recordingStatus">Tap to record, or press and hold while speaking. Review the transcript before feedback.</p>
           </div>
           <div class="recording-actions">
-            <button type="button" class="primary-button" id="startRecording">Record</button>
-            <button type="button" class="secondary-button" id="stopRecording" disabled>Stop, save, and get feedback</button>
+            <button type="button" class="record-button" id="recordButton">
+              <span>Tap to Record</span>
+              <small>Hold to Speak</small>
+            </button>
           </div>
           <audio id="recordingPlayback" controls hidden></audio>
         </div>
         <label class="field-label" for="answerInput">Your spoken answer or transcript</label>
-        <textarea id="answerInput" rows="12" placeholder="Click Record, speak your answer, then stop. The transcript will appear here when supported..."></textarea>
+        <textarea id="answerInput" rows="12" placeholder="Tap to record, speak your answer, then stop. Edit the transcript here before submitting feedback..."></textarea>
         <div class="practice-actions">
-          <button type="button" class="primary-button" id="requestFeedback">Send for AI feedback</button>
+          <button type="button" class="primary-button" id="requestFeedback">Submit feedback</button>
           <button type="button" class="secondary-button" id="clearAnswer">Clear</button>
         </div>
         <div class="followup-box" aria-label="Scenario conversation mode">

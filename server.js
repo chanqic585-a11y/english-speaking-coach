@@ -2,12 +2,14 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const PORT = Number(process.env.PORT || 4173);
+const HOST = process.env.HOST || '0.0.0.0';
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -74,6 +76,18 @@ function sendJson(res, status, payload) {
     'Cache-Control': 'no-store'
   });
   res.end(body);
+}
+
+function getLanUrls() {
+  const urls = [];
+  const interfaces = os.networkInterfaces();
+  for (const entries of Object.values(interfaces)) {
+    for (const entry of entries || []) {
+      if (entry.family !== 'IPv4' || entry.internal) continue;
+      urls.push(`http://${entry.address}:${PORT}`);
+    }
+  }
+  return urls;
 }
 
 function readBody(req) {
@@ -228,6 +242,16 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (req.method === 'GET' && url.pathname === '/api/network') {
+    sendJson(res, 200, {
+      localUrl: `http://localhost:${PORT}`,
+      lanUrls: getLanUrls(),
+      host: HOST,
+      port: PORT
+    });
+    return;
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/today') {
     sendJson(res, 200, todayTopic());
     return;
@@ -306,8 +330,9 @@ if (process.argv.includes('--check')) {
   process.exit(0);
 }
 
-http.createServer(handleRequest).listen(PORT, '127.0.0.1', () => {
+http.createServer(handleRequest).listen(PORT, HOST, () => {
   console.log(`English Speaking Coach running at http://localhost:${PORT}`);
+  for (const url of getLanUrls()) console.log(`Phone on same Wi-Fi: ${url}`);
 });
 
 

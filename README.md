@@ -18,6 +18,30 @@ Then open:
 http://localhost:4173
 ```
 
+## Use it on your phone
+
+The phone and computer must be on the same Wi-Fi.
+
+1. Double-click `English Speaking Coach.cmd` on the desktop.
+2. Keep the computer awake while practicing.
+3. On the computer page, copy the `Phone access` link.
+4. Open that link in your phone browser.
+5. Tap the answer box, tap the microphone on your phone keyboard, and speak your English answer.
+
+If the phone cannot open the link, allow Node.js through Windows Firewall for private networks. Some hotel, school, company, or public Wi-Fi networks block phone-to-computer access.
+
+## Use it away from the same Wi-Fi
+
+Run:
+
+```powershell
+D:\Codex-Workspace\english-speaking-coach\Start-English-Speaking-Coach-Internet.cmd
+```
+
+This starts a temporary Cloudflare Tunnel and opens a public `trycloudflare.com` link. The link is also copied to your clipboard, so you can send it to your phone and open it on mobile data or another Wi-Fi.
+
+Keep this computer awake while using the public link. The quick tunnel is temporary and can change each time you restart it.
+
 ## Without an API key
 
 The app still opens, shows topics, runs the timer, and saves sessions. AI feedback will show setup guidance until `OPENAI_API_KEY` is configured.

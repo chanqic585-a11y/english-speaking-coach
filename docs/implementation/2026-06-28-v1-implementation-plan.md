@@ -28,6 +28,7 @@ The brainstorming workflow requested `writing-plans`, but this local Codex setup
 2. Implement backend APIs.
    - `GET /api/health`
    - `GET /api/settings`
+   - `GET /api/network`
    - `GET /api/today`
    - `POST /api/feedback`
    - `GET /api/sessions`
@@ -35,6 +36,7 @@ The brainstorming workflow requested `writing-plans`, but this local Codex setup
 
 3. Implement static frontend.
    - Workspace Dashboard layout.
+   - Same-Wi-Fi phone access link.
    - Timer controls.
    - Topic and sentence-frame display.
    - Answer editor.
@@ -56,7 +58,7 @@ The brainstorming workflow requested `writing-plans`, but this local Codex setup
 
 ## Out of Scope
 
-- Voice recognition.
+- Custom in-browser voice recognition.
 - Account system.
 - Cloud sync.
 - Full IELTS test simulator.

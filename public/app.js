@@ -19,7 +19,9 @@ const elements = {
   logicNote: document.querySelector('#logicNote'),
   expressionNote: document.querySelector('#expressionNote'),
   historyList: document.querySelector('#historyList'),
-  timer: document.querySelector('#timer')
+  timer: document.querySelector('#timer'),
+  phoneUrl: document.querySelector('#phoneUrl'),
+  copyPhoneUrl: document.querySelector('#copyPhoneUrl')
 };
 
 async function api(path, options = {}) {
@@ -54,6 +56,21 @@ function renderSettings(settings) {
   elements.apiStatus.textContent = settings.apiKeyConfigured ? `API ready: ${settings.model}` : 'API key missing';
   elements.apiStatus.classList.toggle('ready', settings.apiKeyConfigured);
   elements.apiStatus.classList.toggle('missing', !settings.apiKeyConfigured);
+}
+
+async function renderNetworkInfo() {
+  try {
+    const network = await api('/api/network');
+    const phoneUrl = network.lanUrls?.[0];
+    elements.phoneUrl.textContent = phoneUrl
+      ? `${phoneUrl} - open this on your phone while using the same Wi-Fi.`
+      : 'No same Wi-Fi address found yet. Keep using this computer, or check your Wi-Fi adapter.';
+    elements.copyPhoneUrl.disabled = !phoneUrl;
+    elements.copyPhoneUrl.dataset.url = phoneUrl || '';
+  } catch {
+    elements.phoneUrl.textContent = 'Phone link unavailable. The app still works on this computer.';
+    elements.copyPhoneUrl.disabled = true;
+  }
 }
 
 function setFeedbackLoading(isLoading) {
@@ -148,6 +165,18 @@ async function copyFreePrompt() {
   }
 }
 
+async function copyPhoneUrl() {
+  const url = elements.copyPhoneUrl.dataset.url;
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    elements.copyPhoneUrl.textContent = 'Copied';
+    window.setTimeout(() => { elements.copyPhoneUrl.textContent = 'Copy'; }, 1500);
+  } catch {
+    elements.phoneUrl.textContent = `${url} - select and copy this link manually.`;
+  }
+}
+
 function card(title, body) {
   return `<article class="feedback-card"><h3>${title}</h3>${body.startsWith('<') ? body : `<p>${body}</p>`}</article>`;
 }
@@ -186,6 +215,7 @@ async function loadInitialData() {
   const [settings, topic] = await Promise.all([api('/api/settings'), api('/api/today')]);
   renderSettings(settings);
   renderTopic(topic);
+  await renderNetworkInfo();
   await loadHistory();
 }
 
@@ -255,6 +285,7 @@ async function loadHistory() {
 
 document.querySelector('#requestFeedback').addEventListener('click', requestFeedback);
 document.querySelector('#copyFreePrompt').addEventListener('click', copyFreePrompt);
+elements.copyPhoneUrl.addEventListener('click', copyPhoneUrl);
 document.querySelector('#saveSession').addEventListener('click', saveSession);
 document.querySelector('#refreshHistory').addEventListener('click', loadHistory);
 document.querySelector('#clearAnswer').addEventListener('click', () => { elements.answerInput.value = ''; });

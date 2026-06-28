@@ -16,6 +16,14 @@
       <div class="status-pill" id="apiStatus">Checking API key</div>
     </header>
 
+    <section class="phone-access" aria-label="Phone access">
+      <div>
+        <span class="label">Phone access</span>
+        <p id="phoneUrl">Checking same Wi-Fi link...</p>
+      </div>
+      <button type="button" class="secondary-button" id="copyPhoneUrl">Copy</button>
+    </section>
+
     <section class="dashboard" aria-label="Daily practice dashboard">
       <aside class="rail" aria-label="Training steps">
         <div class="today-card">
@@ -52,7 +60,7 @@
         </div>
         <div class="phrase-bank" id="phraseBank" aria-label="Phrase bank"></div>
         <label class="field-label" for="answerInput">Your spoken answer or transcript</label>
-        <textarea id="answerInput" rows="12" placeholder="Speak first. Then type or paste what you said here..."></textarea>
+        <textarea id="answerInput" rows="12" placeholder="On your phone, tap here and use the keyboard microphone. On computer, type or paste what you said..."></textarea>
         <div class="practice-actions">
           <button type="button" class="primary-button" id="requestFeedback">Send for AI feedback</button>
           <button type="button" class="secondary-button" id="copyFreePrompt">Copy free feedback prompt</button>

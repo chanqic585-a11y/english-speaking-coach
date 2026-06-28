@@ -163,6 +163,24 @@ function audioExtension(mimeType) {
   return 'webm';
 }
 
+function findRecording(id) {
+  if (!id) return null;
+  return readRecordings().find(recording => recording.id === id) || null;
+}
+
+function recordingFilePath(recording) {
+  if (!recording?.fileName) return null;
+  const filePath = path.normalize(path.join(RECORDINGS_DIR, recording.fileName));
+  return filePath.startsWith(RECORDINGS_DIR) ? filePath : null;
+}
+
+function speechMetrics(answer, recording) {
+  const words = String(answer || '').trim().split(/\s+/).filter(Boolean).length;
+  const durationSeconds = Number(recording?.durationSeconds || 0);
+  const wordsPerMinute = durationSeconds > 0 ? Math.round((words / durationSeconds) * 60) : null;
+  return { words, durationSeconds, wordsPerMinute };
+}
+
 function localDateOffset(days) {
   const date = new Date();
   date.setDate(date.getDate() + days);
@@ -230,23 +248,71 @@ function getSettings() {
   };
 }
 
-function buildFeedbackPrompt(answer, context) {
-  return `You are an English speaking coach for a Chinese learner living in Mexico. The learner can understand intermediate English but needs better spoken grammar, logic, and natural phrasing.\n\nPractice context:\nFocus: ${context.focus}\nTopic: ${context.topic}\nPrompt: ${context.prompt}\nSentence frame: ${context.sentenceFrame}\n\nUser answer:\n${answer}\n\nReturn concise feedback as valid JSON with these keys:\nquickDiagnosis: string\ngrammarFixes: array of {original:string, improved:string, explanation:string}\nlogicCoherence: array of strings\nnaturalVersion: string\nrepeatScript: string\nreusableExpressions: array of strings\n\nUse Chinese for explanations and English for improved sentences. Limit grammarFixes to 2-4 important corrections. Keep the natural version close to the user's meaning and level.`;
+function buildFeedbackPrompt(answer, context, recording = null) {
+  const metrics = speechMetrics(answer, recording);
+  const audioNote = recording
+    ? `Audio is attached. Recording duration: ${metrics.durationSeconds} seconds. Transcript word count: ${metrics.words}. Estimated speed: ${metrics.wordsPerMinute || 'unknown'} WPM.`
+    : 'No audio is attached. Set pronunciationScore and fluencyScore to null, and explain that audio is needed for pronunciation assessment.';
+
+  return `You are an English speaking coach for a Chinese learner living in Mexico. The learner can understand intermediate English but needs better spoken grammar, logic, pronunciation, fluency, and natural phrasing.
+
+Practice context:
+Focus: ${context.focus}
+Topic: ${context.topic}
+Prompt: ${context.prompt}
+Sentence frame: ${context.sentenceFrame}
+
+User transcript:
+${answer}
+
+Audio context:
+${audioNote}
+
+Return concise feedback as valid JSON with these keys:
+quickDiagnosis: string
+grammarFixes: array of {original:string, improved:string, explanation:string}
+logicCoherence: array of strings
+naturalVersion: string
+repeatScript: string
+reusableExpressions: array of strings
+pronunciationScore: number|null
+fluencyScore: number|null
+speedPauseFeedback: string
+possiblePronunciationIssues: array of {word:string, issue:string, suggestion:string}
+
+Scoring rules:
+- pronunciationScore is 0-100 and should only be scored when audio is attached.
+- fluencyScore is 0-100 and should consider speed, hesitation, pauses, and smoothness when audio is attached.
+- speedPauseFeedback should mention pace and pauses; if audio is missing, use transcript-length only and say the limitation.
+- possiblePronunciationIssues should identify words or sounds that may need practice from the audio. Be cautious and say "possible" when uncertain.
+
+Use Chinese for explanations and English for improved sentences. Limit grammarFixes to 2-4 important corrections. Keep the natural version close to the user's meaning and level.`;
 }
 
-async function requestAiFeedback(answer, context) {
+async function requestAiFeedback(answer, context, recording = null) {
   const provider = (process.env.AI_PROVIDER || 'gemini').toLowerCase();
-  if (provider === 'openai') return requestOpenAiFeedback(answer, context);
-  return requestGeminiFeedback(answer, context);
+  if (provider === 'openai') return requestOpenAiFeedback(answer, context, recording);
+  return requestGeminiFeedback(answer, context, recording);
 }
 
-async function requestGeminiFeedback(answer, context) {
+async function requestGeminiFeedback(answer, context, recording = null) {
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
   if (!apiKey) {
     const error = new Error('GEMINI_API_KEY is not configured. Copy .env.example to .env and add your key.');
     error.code = 'missing_api_key';
     throw error;
+  }
+
+  const parts = [{ text: buildFeedbackPrompt(answer, context, recording) }];
+  const filePath = recordingFilePath(recording);
+  if (filePath && fs.existsSync(filePath)) {
+    parts.push({
+      inlineData: {
+        mimeType: recording.mimeType || 'audio/webm',
+        data: fs.readFileSync(filePath).toString('base64')
+      }
+    });
   }
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
@@ -259,7 +325,7 @@ async function requestGeminiFeedback(answer, context) {
       contents: [
         {
           role: 'user',
-          parts: [{ text: buildFeedbackPrompt(answer, context) }]
+          parts
         }
       ],
       generationConfig: {
@@ -293,7 +359,7 @@ async function requestGeminiFeedback(answer, context) {
   }
 }
 
-async function requestOpenAiFeedback(answer, context) {
+async function requestOpenAiFeedback(answer, context, recording = null) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     const error = new Error('OPENAI_API_KEY is not configured. Copy .env.example to .env and add your key.');
@@ -309,7 +375,7 @@ async function requestOpenAiFeedback(answer, context) {
     },
     body: JSON.stringify({
       model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
-      input: buildFeedbackPrompt(answer, context)
+      input: buildFeedbackPrompt(answer, context, recording)
     })
   });
 
@@ -542,8 +608,9 @@ async function handleApi(req, res) {
       return;
     }
     const context = payload.context || todayTopic();
+    const recording = findRecording(String(payload.recordingId || ''));
     try {
-      const feedback = await requestAiFeedback(answer, context);
+      const feedback = await requestAiFeedback(answer, context, recording);
       sendJson(res, 200, { feedback });
     } catch (error) {
       sendJson(res, error.code === 'missing_api_key' ? 400 : 502, {

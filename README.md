@@ -88,6 +88,13 @@ Use the `Speaking recorder` inside the practice panel:
 
 The app saves the audio locally under `data/recordings/`, places the transcript into the answer box when browser speech recognition is available, and then sends that transcript through the existing AI feedback flow.
 
+When Gemini feedback is enabled, recorded sessions also send the saved audio to Gemini so the feedback can include:
+
+- pronunciation score
+- fluency score
+- speed and pause feedback
+- possible words or sounds to practice
+
 Recording uses the browser MediaRecorder API. Live transcription uses browser SpeechRecognition when available, so support varies by browser. The public HTTPS tunnel generally works better for microphone and speech recognition permissions than plain local network links on some phones.
 
 ## Vocabulary practice

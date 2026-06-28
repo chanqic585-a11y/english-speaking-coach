@@ -7,7 +7,8 @@
   audioChunks: [],
   speechRecognition: null,
   finalTranscript: '',
-  recordingStartedAt: null
+  recordingStartedAt: null,
+  lastRecordingId: null
 };
 
 const elements = {
@@ -117,8 +118,20 @@ function renderFeedback(feedback) {
     ? `<ul>${feedback.reusableExpressions.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
     : '<p>No reusable expressions returned.</p>';
 
+  const speechScores = [
+    `<p><strong>Pronunciation:</strong> ${feedback.pronunciationScore ?? 'Audio needed'}</p>`,
+    `<p><strong>Fluency:</strong> ${feedback.fluencyScore ?? 'Audio needed'}</p>`,
+    `<p>${escapeHtml(feedback.speedPauseFeedback || 'No speed or pause feedback returned.')}</p>`
+  ].join('');
+
+  const pronunciationIssues = Array.isArray(feedback.possiblePronunciationIssues) && feedback.possiblePronunciationIssues.length
+    ? `<ul>${feedback.possiblePronunciationIssues.map(item => `<li><strong>${escapeHtml(item.word || '')}</strong><br><span>${escapeHtml(item.issue || '')}</span><br><span>${escapeHtml(item.suggestion || '')}</span></li>`).join('')}</ul>`
+    : '<p>No specific pronunciation issues returned.</p>';
+
   elements.feedbackContent.innerHTML = [
     card('Quick diagnosis', escapeHtml(feedback.quickDiagnosis || 'No quick diagnosis returned.')),
+    card('Pronunciation and fluency', speechScores),
+    card('Possible pronunciation issues', pronunciationIssues),
     card('Grammar fixes', grammar),
     card('Logic and coherence', logic),
     card('Natural version', `<p>${escapeHtml(feedback.naturalVersion || '')}</p>`),
@@ -155,7 +168,8 @@ function buildFreeFeedbackPrompt(answer) {
     '3. Logic and coherence: tell me how to organize my answer more clearly.',
     '4. Natural version: rewrite my answer in natural spoken English, but keep it close to my level and meaning.',
     '5. Repeat script: give me a shorter version that I can say aloud again.',
-    '6. Reusable expressions: give me 3-5 phrases I can reuse in future conversations.'
+    '6. Reusable expressions: give me 3-5 phrases I can reuse in future conversations.',
+    '7. Pronunciation and fluency: if I provide audio separately, give pronunciation score, fluency score, speed/pause feedback, and possible pronunciation issues.'
   ].join('\n');
 }
 
@@ -391,6 +405,7 @@ async function saveRecordingAndRequestFeedback() {
     })
   });
 
+  state.lastRecordingId = saved.recording.id;
   elements.recordingStatus.textContent = `Recording saved: ${saved.recording.fileName}`;
   if (transcript.length >= 20) {
     await requestFeedback();
@@ -453,7 +468,7 @@ async function requestFeedback() {
   try {
     const data = await api('/api/feedback', {
       method: 'POST',
-      body: JSON.stringify({ answer, context: state.topic })
+      body: JSON.stringify({ answer, context: state.topic, recordingId: state.lastRecordingId })
     });
     renderFeedback(data.feedback);
   } catch (error) {

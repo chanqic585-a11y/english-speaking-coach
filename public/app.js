@@ -100,6 +100,9 @@ function setFeedbackLoading(isLoading) {
 function renderFeedback(feedback) {
   state.feedback = feedback;
   elements.feedbackState.textContent = 'Feedback received';
+  elements.recordingStatus.textContent = state.lastRecordingId
+    ? 'AI feedback received for the saved recording.'
+    : elements.recordingStatus.textContent;
 
   if (feedback.rawText || feedback.rawResponse) {
     elements.feedbackContent.innerHTML = card('Raw feedback', escapeHtml(feedback.rawText || JSON.stringify(feedback.rawResponse, null, 2)));
@@ -142,6 +145,9 @@ function renderFeedback(feedback) {
 
 function renderFeedbackError(error) {
   elements.feedbackState.textContent = 'Feedback unavailable';
+  elements.recordingStatus.textContent = state.lastRecordingId
+    ? `Recording saved, but feedback failed: ${error.message}`
+    : elements.recordingStatus.textContent;
   const details = error.payload?.details ? `<pre>${escapeHtml(error.payload.details)}</pre>` : '<p>Copy .env.example to .env, add GEMINI_API_KEY, then restart the server.</p>';
   elements.feedbackContent.innerHTML = card('Setup or request issue', `<p>${escapeHtml(error.message)}</p>${details}`);
 }
@@ -406,7 +412,7 @@ async function saveRecordingAndRequestFeedback() {
   });
 
   state.lastRecordingId = saved.recording.id;
-  elements.recordingStatus.textContent = `Recording saved: ${saved.recording.fileName}`;
+  elements.recordingStatus.textContent = `Recording saved: ${saved.recording.fileName}. Asking Gemini for feedback...`;
   await requestFeedback();
 }
 
@@ -467,8 +473,10 @@ async function requestFeedback() {
       body: JSON.stringify({ answer, context: state.topic, recordingId: state.lastRecordingId })
     });
     renderFeedback(data.feedback);
+    elements.feedbackContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
     renderFeedbackError(error);
+    elements.feedbackContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } finally {
     setFeedbackLoading(false);
   }
@@ -527,7 +535,11 @@ elements.vocabForm.addEventListener('submit', addVocabulary);
 elements.reviewList.addEventListener('click', reviewVocabulary);
 elements.startRecording.addEventListener('click', startRecording);
 elements.stopRecording.addEventListener('click', stopRecording);
-document.querySelector('#clearAnswer').addEventListener('click', () => { elements.answerInput.value = ''; });
+document.querySelector('#clearAnswer').addEventListener('click', () => {
+  elements.answerInput.value = '';
+  state.lastRecordingId = null;
+  elements.recordingPlayback.hidden = true;
+});
 document.querySelector('#loadTopic').addEventListener('click', async () => renderTopic(await api('/api/today')));
 document.querySelector('#startTimer').addEventListener('click', startTimer);
 document.querySelector('#pauseTimer').addEventListener('click', pauseTimer);

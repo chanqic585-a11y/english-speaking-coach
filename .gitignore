@@ -3,6 +3,7 @@
 .env.local
 node_modules/
 dist/
+CURRENT_URL.txt
 data/*.json
 data/*.log
 data/*.err.log

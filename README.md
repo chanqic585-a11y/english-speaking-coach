@@ -74,6 +74,8 @@ Use the `Speaking recorder` inside the practice panel:
 
 The app saves the audio locally under `data/recordings/`, places the transcript into the answer box when browser speech recognition is available, and then sends that transcript through the existing AI feedback flow.
 
+AI feedback opens in a dialog automatically. The dialog shows request progress first, then highlights pronunciation score, fluency score, and the repeat script before the detailed grammar and logic notes.
+
 When Gemini feedback is enabled, recorded sessions also send the saved audio to Gemini so the feedback can include:
 
 - pronunciation score

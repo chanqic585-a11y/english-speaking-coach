@@ -81,7 +81,10 @@
       <section class="panel feedback-panel" aria-label="AI feedback workspace">
         <div class="panel-header">
           <span class="label">AI feedback</span>
-          <span class="muted" id="feedbackState">Waiting for your answer</span>
+          <div class="feedback-header-actions">
+            <span class="muted" id="feedbackState">Waiting for your answer</span>
+            <button type="button" class="secondary-button compact-button" id="openFeedbackModal" disabled>Open latest</button>
+          </div>
         </div>
         <div class="feedback-content" id="feedbackContent">
           <div class="empty-state">
@@ -98,6 +101,22 @@
         </div>
       </section>
     </section>
+
+    <div class="feedback-modal" id="feedbackModal" hidden role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
+      <button type="button" class="modal-backdrop" id="feedbackModalBackdrop" aria-label="Close feedback"></button>
+      <section class="modal-panel" tabindex="-1">
+        <div class="modal-header">
+          <div>
+            <span class="label">AI feedback</span>
+            <h2 id="feedbackModalTitle">Getting feedback</h2>
+            <p class="muted" id="feedbackModalStatus">Saving your practice and asking Gemini for feedback.</p>
+          </div>
+          <button type="button" class="secondary-button compact-button" id="closeFeedbackModal">Close</button>
+        </div>
+        <div class="modal-summary" id="feedbackModalSummary"></div>
+        <div class="feedback-content modal-feedback-content" id="feedbackModalContent"></div>
+      </section>
+    </div>
 
     <section class="vocabulary-section" aria-label="Vocabulary practice">
       <div class="panel-header">

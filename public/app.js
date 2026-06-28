@@ -39,7 +39,16 @@ const elements = {
   startRecording: document.querySelector('#startRecording'),
   stopRecording: document.querySelector('#stopRecording'),
   recordingStatus: document.querySelector('#recordingStatus'),
-  recordingPlayback: document.querySelector('#recordingPlayback')
+  recordingPlayback: document.querySelector('#recordingPlayback'),
+  feedbackModal: document.querySelector('#feedbackModal'),
+  feedbackModalPanel: document.querySelector('#feedbackModal .modal-panel'),
+  feedbackModalBackdrop: document.querySelector('#feedbackModalBackdrop'),
+  feedbackModalTitle: document.querySelector('#feedbackModalTitle'),
+  feedbackModalStatus: document.querySelector('#feedbackModalStatus'),
+  feedbackModalSummary: document.querySelector('#feedbackModalSummary'),
+  feedbackModalContent: document.querySelector('#feedbackModalContent'),
+  openFeedbackModal: document.querySelector('#openFeedbackModal'),
+  closeFeedbackModal: document.querySelector('#closeFeedbackModal')
 };
 
 async function api(path, options = {}) {
@@ -94,19 +103,18 @@ async function renderNetworkInfo() {
 
 function setFeedbackLoading(isLoading) {
   document.querySelector('#requestFeedback').disabled = isLoading;
-  elements.feedbackState.textContent = isLoading ? 'Getting feedback...' : 'Ready';
+  if (isLoading) {
+    elements.feedbackState.textContent = 'Getting feedback...';
+  }
 }
 
-function renderFeedback(feedback) {
-  state.feedback = feedback;
-  elements.feedbackState.textContent = 'Feedback received';
-  elements.recordingStatus.textContent = state.lastRecordingId
-    ? 'AI feedback received for the saved recording.'
-    : elements.recordingStatus.textContent;
+function scoreValue(value) {
+  return value ?? 'Audio needed';
+}
 
+function buildFeedbackDetails(feedback) {
   if (feedback.rawText || feedback.rawResponse) {
-    elements.feedbackContent.innerHTML = card('Raw feedback', escapeHtml(feedback.rawText || JSON.stringify(feedback.rawResponse, null, 2)));
-    return;
+    return card('Raw feedback', escapeHtml(feedback.rawText || JSON.stringify(feedback.rawResponse, null, 2)));
   }
 
   const grammar = Array.isArray(feedback.grammarFixes) && feedback.grammarFixes.length
@@ -122,8 +130,8 @@ function renderFeedback(feedback) {
     : '<p>No reusable expressions returned.</p>';
 
   const speechScores = [
-    `<p><strong>Pronunciation:</strong> ${feedback.pronunciationScore ?? 'Audio needed'}</p>`,
-    `<p><strong>Fluency:</strong> ${feedback.fluencyScore ?? 'Audio needed'}</p>`,
+    `<p><strong>Pronunciation:</strong> ${scoreValue(feedback.pronunciationScore)}</p>`,
+    `<p><strong>Fluency:</strong> ${scoreValue(feedback.fluencyScore)}</p>`,
     `<p>${escapeHtml(feedback.speedPauseFeedback || 'No speed or pause feedback returned.')}</p>`
   ].join('');
 
@@ -131,7 +139,7 @@ function renderFeedback(feedback) {
     ? `<ul>${feedback.possiblePronunciationIssues.map(item => `<li><strong>${escapeHtml(item.word || '')}</strong><br><span>${escapeHtml(item.issue || '')}</span><br><span>${escapeHtml(item.suggestion || '')}</span></li>`).join('')}</ul>`
     : '<p>No specific pronunciation issues returned.</p>';
 
-  elements.feedbackContent.innerHTML = [
+  return [
     card('Quick diagnosis', escapeHtml(feedback.quickDiagnosis || 'No quick diagnosis returned.')),
     card('Pronunciation and fluency', speechScores),
     card('Possible pronunciation issues', pronunciationIssues),
@@ -143,13 +151,74 @@ function renderFeedback(feedback) {
   ].join('');
 }
 
+function renderFeedbackSummary(feedback) {
+  if (feedback.rawText || feedback.rawResponse) {
+    return '<div class="summary-card wide"><strong>Raw feedback received</strong><p>Gemini returned text that could not be parsed into the usual sections. Review the full response below.</p></div>';
+  }
+
+  return [
+    `<div class="score-card"><span>Pronunciation</span><strong>${scoreValue(feedback.pronunciationScore)}</strong></div>`,
+    `<div class="score-card"><span>Fluency</span><strong>${scoreValue(feedback.fluencyScore)}</strong></div>`,
+    `<div class="summary-card wide"><strong>Repeat script</strong><p>${escapeHtml(feedback.repeatScript || feedback.naturalVersion || 'No repeat script returned yet.')}</p></div>`
+  ].join('');
+}
+
+function openFeedbackModal() {
+  elements.feedbackModal.hidden = false;
+  document.body.classList.add('modal-open');
+  window.requestAnimationFrame(() => elements.feedbackModalPanel.focus());
+}
+
+function closeFeedbackModal() {
+  elements.feedbackModal.hidden = true;
+  document.body.classList.remove('modal-open');
+}
+
+function renderFeedbackLoading() {
+  elements.feedbackModalTitle.textContent = 'Getting feedback';
+  elements.feedbackModalStatus.textContent = state.lastRecordingId
+    ? 'Recording saved. Gemini is listening to the audio and preparing feedback.'
+    : 'Sending your answer to Gemini and preparing feedback.';
+  elements.feedbackModalSummary.innerHTML = `
+    <div class="progress-card active"><span>1</span><strong>Saving practice</strong></div>
+    <div class="progress-card active"><span>2</span><strong>Asking Gemini</strong></div>
+    <div class="progress-card"><span>3</span><strong>Preparing repeat script</strong></div>
+  `;
+  elements.feedbackModalContent.innerHTML = '<div class="empty-state"><h2>Please wait</h2><p>Your feedback will appear here automatically. Keep this page open while the request finishes.</p></div>';
+  openFeedbackModal();
+}
+
+function renderFeedback(feedback) {
+  state.feedback = feedback;
+  elements.feedbackState.textContent = 'Feedback received';
+  elements.openFeedbackModal.disabled = false;
+  elements.recordingStatus.textContent = state.lastRecordingId
+    ? 'AI feedback received for the saved recording.'
+    : elements.recordingStatus.textContent;
+
+  const details = buildFeedbackDetails(feedback);
+  elements.feedbackContent.innerHTML = details;
+  elements.feedbackModalTitle.textContent = 'Feedback is ready';
+  elements.feedbackModalStatus.textContent = 'Start with the scores and repeat script, then review the detailed corrections.';
+  elements.feedbackModalSummary.innerHTML = renderFeedbackSummary(feedback);
+  elements.feedbackModalContent.innerHTML = details;
+  openFeedbackModal();
+}
+
 function renderFeedbackError(error) {
   elements.feedbackState.textContent = 'Feedback unavailable';
+  elements.openFeedbackModal.disabled = false;
   elements.recordingStatus.textContent = state.lastRecordingId
     ? `Recording saved, but feedback failed: ${error.message}`
     : elements.recordingStatus.textContent;
   const details = error.payload?.details ? `<pre>${escapeHtml(error.payload.details)}</pre>` : '<p>Copy .env.example to .env, add GEMINI_API_KEY, then restart the server.</p>';
-  elements.feedbackContent.innerHTML = card('Setup or request issue', `<p>${escapeHtml(error.message)}</p>${details}`);
+  const content = card('Setup or request issue', `<p>${escapeHtml(error.message)}</p>${details}`);
+  elements.feedbackContent.innerHTML = content;
+  elements.feedbackModalTitle.textContent = 'Feedback issue';
+  elements.feedbackModalStatus.textContent = 'The practice was not analyzed. Check the message below and try again.';
+  elements.feedbackModalSummary.innerHTML = `<div class="summary-card wide"><strong>What happened</strong><p>${escapeHtml(error.message)}</p></div>`;
+  elements.feedbackModalContent.innerHTML = content;
+  openFeedbackModal();
 }
 
 async function copyPhoneUrl() {
@@ -416,16 +485,15 @@ async function requestFeedback() {
   }
 
   setFeedbackLoading(true);
+  renderFeedbackLoading();
   try {
     const data = await api('/api/feedback', {
       method: 'POST',
       body: JSON.stringify({ answer, context: state.topic, recordingId: state.lastRecordingId })
     });
     renderFeedback(data.feedback);
-    elements.feedbackContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
     renderFeedbackError(error);
-    elements.feedbackContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } finally {
     setFeedbackLoading(false);
   }
@@ -476,6 +544,14 @@ async function loadHistory() {
 
 document.querySelector('#requestFeedback').addEventListener('click', requestFeedback);
 elements.copyPhoneUrl.addEventListener('click', copyPhoneUrl);
+elements.openFeedbackModal.addEventListener('click', openFeedbackModal);
+elements.closeFeedbackModal.addEventListener('click', closeFeedbackModal);
+elements.feedbackModalBackdrop.addEventListener('click', closeFeedbackModal);
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !elements.feedbackModal.hidden) {
+    closeFeedbackModal();
+  }
+});
 document.querySelector('#saveSession').addEventListener('click', saveSession);
 document.querySelector('#refreshHistory').addEventListener('click', loadHistory);
 document.querySelector('#refreshVocabulary').addEventListener('click', loadVocabulary);

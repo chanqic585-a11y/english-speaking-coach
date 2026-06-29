@@ -15,6 +15,8 @@
   shadowingLoading: false,
   isShadowRecording: false,
   chatRecognition: null,
+  dictationRecognition: null,
+  activeDictationTarget: null,
   chatMessages: [],
   feedbackAnswer: '',
   feedbackFollowupQuestion: '',
@@ -50,6 +52,8 @@ const elements = {
   roleScenarioTitle: document.querySelector('#roleScenarioTitle'),
   roleScenarioTask: document.querySelector('#roleScenarioTask'),
   roleOpeningAnswer: document.querySelector('#roleOpeningAnswer'),
+  roleOpeningVoice: document.querySelector('#roleOpeningVoice'),
+  roleOpeningVoiceStatus: document.querySelector('#roleOpeningVoiceStatus'),
   loadRoleTopic: document.querySelector('#loadRoleTopic'),
   promptText: document.querySelector('#promptText'),
   sentenceFrame: document.querySelector('#sentenceFrame'),
@@ -100,6 +104,8 @@ const elements = {
   chatModalBackdrop: document.querySelector('#chatModalBackdrop'),
   closeChat: document.querySelector('#closeChat'),
   chatStatus: document.querySelector('#chatStatus'),
+  chatVoiceStatus: document.querySelector('#chatVoiceStatus'),
+  chatVoiceOutput: document.querySelector('#chatVoiceOutput'),
   chatMessages: document.querySelector('#chatMessages'),
   chatInput: document.querySelector('#chatInput'),
   chatMic: document.querySelector('#chatMic'),
@@ -111,6 +117,8 @@ const elements = {
   followupResponse: document.querySelector('#followupResponse'),
   selectedFollowupQuestion: document.querySelector('#selectedFollowupQuestion'),
   followupAnswer: document.querySelector('#followupAnswer'),
+  followupVoice: document.querySelector('#followupVoice'),
+  followupVoiceStatus: document.querySelector('#followupVoiceStatus'),
   sendFollowupAnswer: document.querySelector('#sendFollowupAnswer'),
   requestSceneFeedback: document.querySelector('#requestSceneFeedback'),
   clearFollowups: document.querySelector('#clearFollowups'),
@@ -383,8 +391,12 @@ function renderFeedbackFollowupPanel() {
     ? `
       <div class="feedback-followup-current">
         <p><strong>Follow-up question:</strong> ${escapeHtml(state.feedbackFollowupQuestion)}</p>
+        <p class="voice-step-status" id="feedbackFollowupVoiceStatus">Record or type your answer. The transcript will appear below.</p>
         <textarea id="feedbackFollowupAnswer" rows="3" placeholder="Answer this follow-up in English..."></textarea>
-        <button type="button" class="primary-button" id="sendFeedbackFollowup" ${state.feedbackFollowupLoading ? 'disabled' : ''}>Send follow-up answer</button>
+        <div class="practice-actions next-actions">
+          <button type="button" class="secondary-button" id="feedbackFollowupVoice" ${state.feedbackFollowupLoading ? 'disabled' : ''}>Record voice</button>
+          <button type="button" class="primary-button" id="sendFeedbackFollowup" ${state.feedbackFollowupLoading ? 'disabled' : ''}>Send follow-up answer</button>
+        </div>
       </div>
     `
     : '';
@@ -439,12 +451,17 @@ function renderShadowingPanel() {
   if (!repeatScript) return '';
   const buttonText = state.isShadowRecording ? 'Stop shadowing' : 'Record repeat script';
   const status = state.isShadowRecording
-    ? 'Recording your repeat script now...'
+    ? 'Listening and recording. Read the repeat script aloud, then stop.'
     : state.shadowingLoading
       ? 'Saving your shadowing audio and asking Gemini to compare it...'
       : state.shadowingFeedback
         ? 'Shadowing feedback is ready.'
-        : 'Read the repeat script aloud. Gemini will compare your recording with the target script.';
+        : 'Step 1: record yourself reading the repeat script. Step 2: edit the transcript if needed. Step 3: get shadowing feedback automatically.';
+  const statusClass = state.isShadowRecording
+    ? 'listening'
+    : state.shadowingFeedback
+      ? 'ready'
+      : '';
   const transcriptValue = escapeHtml(state.shadowTranscript);
   const audio = state.shadowAudioUrl
     ? `<audio controls src="${escapeHtml(state.shadowAudioUrl)}"></audio>`
@@ -462,7 +479,7 @@ function renderShadowingPanel() {
       </div>
       <div class="shadowing-actions">
         <button type="button" class="primary-button" id="toggleShadowingRecording" ${state.shadowingLoading ? 'disabled' : ''}>${buttonText}</button>
-        <span class="muted">${escapeHtml(status)}</span>
+        <span class="voice-step-status ${statusClass}">${escapeHtml(status)}</span>
       </div>
       ${audio}
       <label class="field-label" for="shadowingTranscript">Shadowing transcript</label>
@@ -558,6 +575,17 @@ async function sendFeedbackFollowupAnswer() {
   await requestFeedbackFollowup();
 }
 
+function startFeedbackFollowupVoiceInput() {
+  startDictation({
+    input: document.querySelector('#feedbackFollowupAnswer'),
+    status: document.querySelector('#feedbackFollowupVoiceStatus'),
+    button: document.querySelector('#feedbackFollowupVoice'),
+    idleText: 'Record voice',
+    listeningText: 'Listening... answer the follow-up question in English.',
+    readyText: 'Transcript ready. Edit it if needed, then send your follow-up answer.'
+  });
+}
+
 function openFeedbackModal() {
   elements.feedbackModal.hidden = false;
   document.body.classList.add('modal-open');
@@ -568,6 +596,7 @@ function closeFeedbackModal() {
   if (state.isShadowRecording) {
     stopShadowingRecording();
   }
+  stopActiveDictation();
   elements.feedbackModal.hidden = true;
   document.body.classList.remove('modal-open');
 }
@@ -596,9 +625,9 @@ function renderFeedback(feedback) {
   state.feedbackFollowupClosing = '';
   elements.feedbackState.textContent = 'Feedback received';
   elements.openFeedbackModal.disabled = false;
-  elements.recordingStatus.textContent = state.lastRecordingId
-    ? 'AI feedback received for the saved recording.'
-    : elements.recordingStatus.textContent;
+  if (state.lastRecordingId) {
+    setVoiceStatus(elements.recordingStatus, 'AI feedback received. Next: read the repeat script aloud in the feedback window.', 'ready');
+  }
 
   elements.feedbackContent.innerHTML = renderFeedbackPreview(feedback);
   elements.feedbackModalTitle.textContent = 'Feedback is ready';
@@ -822,12 +851,89 @@ function getSpeechRecognition() {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;
 }
 
+function setVoiceStatus(element, message, mode = '') {
+  if (!element) return;
+  element.textContent = message;
+  element.classList.remove('listening', 'ready', 'issue');
+  if (mode) element.classList.add(mode);
+}
+
+function setButtonRecording(button, isRecording, activeText = 'Stop', idleText = 'Record voice') {
+  if (!button) return;
+  button.textContent = isRecording ? activeText : idleText;
+  button.classList.toggle('recording', isRecording);
+}
+
+function stopActiveDictation() {
+  if (state.dictationRecognition) {
+    state.dictationRecognition.stop();
+    state.dictationRecognition = null;
+  }
+  if (state.activeDictationTarget?.button) {
+    setButtonRecording(state.activeDictationTarget.button, false, 'Stop', state.activeDictationTarget.idleText);
+  }
+  state.activeDictationTarget = null;
+}
+
+function startDictation({ input, status, button, idleText = 'Record voice', listeningText, readyText }) {
+  if (!input) return;
+  const Recognition = getSpeechRecognition();
+  if (!Recognition) {
+    setVoiceStatus(status, 'Voice typing is not supported in this browser. Please type instead.', 'issue');
+    return;
+  }
+  if (state.dictationRecognition) {
+    stopActiveDictation();
+    return;
+  }
+
+  const recognition = new Recognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = true;
+  recognition.continuous = false;
+  state.activeDictationTarget = { button, idleText };
+
+  recognition.onresult = event => {
+    let text = '';
+    for (let index = 0; index < event.results.length; index += 1) {
+      text += event.results[index][0]?.transcript || '';
+    }
+    input.value = text.trim();
+    setVoiceStatus(status, 'Transcribing... keep speaking or wait for the final text.', 'listening');
+  };
+  recognition.onend = () => {
+    state.dictationRecognition = null;
+    setButtonRecording(button, false, 'Stop', idleText);
+    state.activeDictationTarget = null;
+    setVoiceStatus(
+      status,
+      input.value.trim() ? readyText : 'No transcript captured. Try again, speak closer to the mic, or type instead.',
+      input.value.trim() ? 'ready' : 'issue'
+    );
+    input.focus();
+  };
+  recognition.onerror = event => {
+    setVoiceStatus(status, `Voice input issue: ${event.error || 'unavailable'}. Try again or type instead.`, 'issue');
+  };
+
+  try {
+    state.dictationRecognition = recognition;
+    setButtonRecording(button, true, 'Stop', idleText);
+    setVoiceStatus(status, listeningText, 'listening');
+    recognition.start();
+  } catch {
+    state.dictationRecognition = null;
+    setButtonRecording(button, false, 'Stop', idleText);
+    setVoiceStatus(status, 'Voice input could not start in this browser. Please type instead.', 'issue');
+  }
+}
+
 function setRecordingUi(isRecording, message) {
   state.isRecording = isRecording;
   elements.recordButton.classList.toggle('recording', isRecording);
   elements.recordButton.querySelector('span').textContent = isRecording ? 'Tap to Stop' : 'Tap to Record';
   elements.recordButton.querySelector('small').textContent = isRecording ? 'Recording now' : 'Hold to Speak';
-  elements.recordingStatus.textContent = message;
+  setVoiceStatus(elements.recordingStatus, message, isRecording ? 'listening' : '');
 }
 
 function blobToBase64(blob) {
@@ -842,7 +948,7 @@ function blobToBase64(blob) {
 function startSpeechRecognition() {
   const Recognition = getSpeechRecognition();
   if (!Recognition) {
-    elements.recordingStatus.textContent = 'Recording audio. Speech recognition is not supported in this browser.';
+    setVoiceStatus(elements.recordingStatus, 'Recording audio. Live transcript is not supported here, so type your transcript after stopping.', 'issue');
     return;
   }
 
@@ -861,15 +967,16 @@ function startSpeechRecognition() {
       }
     }
     elements.answerInput.value = [state.finalTranscript, interim].filter(Boolean).join(' ');
+    setVoiceStatus(elements.recordingStatus, 'Listening and transcribing... stop when you finish speaking.', 'listening');
   };
   recognition.onerror = event => {
-    elements.recordingStatus.textContent = `Recording audio. Speech recognition issue: ${event.error || 'unavailable'}. You can still edit or type the transcript after stopping.`;
+    setVoiceStatus(elements.recordingStatus, `Recording audio. Speech recognition issue: ${event.error || 'unavailable'}. You can still edit or type the transcript after stopping.`, 'issue');
   };
   try {
     recognition.start();
     state.speechRecognition = recognition;
   } catch {
-    elements.recordingStatus.textContent = 'Recording audio. Speech recognition could not start in this browser.';
+    setVoiceStatus(elements.recordingStatus, 'Recording audio. Speech recognition could not start here, so type your transcript after stopping.', 'issue');
   }
 }
 
@@ -944,9 +1051,13 @@ async function saveRecordingDraft() {
   });
 
   state.lastRecordingId = saved.recording.id;
-  elements.recordingStatus.textContent = transcript
-    ? `Recording saved: ${saved.recording.fileName}. Review or edit the transcript, then submit feedback.`
-    : `Recording saved: ${saved.recording.fileName}. Type or edit the transcript if needed, then submit feedback.`;
+  setVoiceStatus(
+    elements.recordingStatus,
+    transcript
+      ? `Transcript ready. Review or edit it, then tap Get Feedback.`
+      : `Recording saved. Type or edit the transcript, then tap Get Feedback.`,
+    transcript ? 'ready' : 'issue'
+  );
 }
 
 function startShadowingRecognition() {
@@ -1200,12 +1311,36 @@ async function loadHistory() {
 function setFollowupLoading(isLoading) {
   elements.requestFollowups.disabled = isLoading;
   elements.sendFollowupAnswer.disabled = isLoading;
+  if (elements.roleOpeningVoice) elements.roleOpeningVoice.disabled = isLoading;
+  if (elements.followupVoice) elements.followupVoice.disabled = isLoading;
   if (elements.requestSceneFeedback) {
     elements.requestSceneFeedback.disabled = isLoading || state.sceneFeedbackLoading || !canRequestSceneFeedback();
   }
   if (isLoading) {
     elements.followupStatus.textContent = 'AI role is preparing the next scene turn...';
   }
+}
+
+function startRoleOpeningVoiceInput() {
+  startDictation({
+    input: elements.roleOpeningAnswer,
+    status: elements.roleOpeningVoiceStatus,
+    button: elements.roleOpeningVoice,
+    idleText: 'Record voice',
+    listeningText: 'Listening... answer the role opening in English.',
+    readyText: 'Transcript ready. Edit it if needed, then tap Start scene.'
+  });
+}
+
+function startFollowupVoiceInput() {
+  startDictation({
+    input: elements.followupAnswer,
+    status: elements.followupVoiceStatus,
+    button: elements.followupVoice,
+    idleText: 'Record voice',
+    listeningText: 'Listening... reply to the AI role in one or two sentences.',
+    readyText: 'Transcript ready. Edit it if needed, then tap Send scene reply.'
+  });
 }
 
 function canRequestSceneFeedback() {
@@ -1364,6 +1499,7 @@ async function requestFollowups() {
     });
     renderFollowupResult(data.followups || {});
     elements.followupStatus.textContent = 'Reply to the AI role to continue the scene.';
+    setVoiceStatus(elements.followupVoiceStatus, 'Step 2: record or type your reply to the AI role.');
   } catch (error) {
     elements.followupStatus.textContent = `Scenario unavailable: ${error.message}`;
   } finally {
@@ -1400,6 +1536,7 @@ async function sendFollowupAnswer() {
     });
     renderFollowupResult(data.followups || {});
     elements.followupAnswer.value = '';
+    setVoiceStatus(elements.followupVoiceStatus, 'Next turn ready. Record or type your next reply.');
     elements.followupStatus.textContent = state.scenarioComplete
       ? 'Scene complete. Review the summary or start a new scene.'
       : 'Good. Reply to the next role line to continue.';
@@ -1424,6 +1561,8 @@ function clearFollowups() {
   }
   elements.followupAnswer.value = '';
   elements.followupResponse.hidden = true;
+  setVoiceStatus(elements.roleOpeningVoiceStatus, 'Type your reply, or record your voice and edit the transcript before starting.');
+  setVoiceStatus(elements.followupVoiceStatus, 'Answer by typing or recording. Your transcript will appear below.');
   if (elements.requestSceneFeedback) {
     elements.requestSceneFeedback.disabled = true;
     elements.requestSceneFeedback.textContent = 'Get scene feedback';
@@ -1438,12 +1577,8 @@ async function loadRandomTopic() {
   renderTopic(await api(`/api/today?random=1&exclude=${exclude}&level=${level}&category=${category}`));
 }
 
-function chatInputMode() {
-  return document.querySelector('input[name="chatInputMode"]:checked')?.value || 'text';
-}
-
 function chatOutputMode() {
-  return document.querySelector('input[name="chatOutputMode"]:checked')?.value || 'text';
+  return elements.chatVoiceOutput?.checked ? 'voice' : 'text';
 }
 
 function saveChatMessages() {
@@ -1480,6 +1615,7 @@ function openChat() {
 function closeChat() {
   showPage('todayPractice');
   window.speechSynthesis?.cancel();
+  stopActiveDictation();
   if (state.chatRecognition) {
     state.chatRecognition.stop();
     state.chatRecognition = null;
@@ -1500,13 +1636,13 @@ function setChatLoading(isLoading) {
   elements.chatMic.disabled = isLoading;
   elements.chatStatus.textContent = isLoading
     ? 'AI coach is thinking...'
-    : 'Chat with your coach. Use text or voice input, then listen or read the reply.';
+    : 'Record or type one English message, check the transcript, then send it to AI.';
 }
 
 async function sendChatMessage() {
   const text = elements.chatInput.value.trim();
   if (!text) {
-    elements.chatStatus.textContent = 'Type or speak one English sentence first.';
+    setVoiceStatus(elements.chatVoiceStatus, 'Record your voice or type one English sentence first.', 'issue');
     return;
   }
 
@@ -1525,6 +1661,7 @@ async function sendChatMessage() {
     state.chatMessages.push({ role: 'assistant', content: reply });
     renderChatMessages();
     saveChatMessages();
+    setVoiceStatus(elements.chatVoiceStatus, 'AI replied. Answer the next question by recording or typing one sentence.', 'ready');
     speakChatReply(reply);
   } catch (error) {
     state.chatMessages.push({ role: 'system', content: `Chat failed: ${error.message}` });
@@ -1536,54 +1673,24 @@ async function sendChatMessage() {
 }
 
 function startChatVoiceInput() {
-  if (chatInputMode() !== 'voice') {
-    elements.chatStatus.textContent = 'Switch to Voice input first.';
-    return;
-  }
-  const Recognition = getSpeechRecognition();
-  if (!Recognition) {
-    elements.chatStatus.textContent = 'Voice input is not supported in this browser. Use text input instead.';
-    return;
-  }
-  if (state.chatRecognition) {
-    state.chatRecognition.stop();
-    state.chatRecognition = null;
-    elements.chatMic.textContent = 'Speak';
-    return;
-  }
-
-  const recognition = new Recognition();
-  recognition.lang = 'en-US';
-  recognition.interimResults = true;
-  recognition.continuous = false;
-  recognition.onresult = event => {
-    let text = '';
-    for (let index = 0; index < event.results.length; index += 1) {
-      text += event.results[index][0].transcript;
-    }
-    elements.chatInput.value = text.trim();
-  };
-  recognition.onend = () => {
-    state.chatRecognition = null;
-    elements.chatMic.textContent = 'Speak';
-    elements.chatStatus.textContent = elements.chatInput.value.trim()
-      ? 'Voice captured. Send it when you are ready.'
-      : 'No voice text captured. Try again or use text input.';
-  };
-  recognition.onerror = event => {
-    elements.chatStatus.textContent = `Voice input issue: ${event.error || 'unavailable'}.`;
-  };
-  state.chatRecognition = recognition;
-  elements.chatMic.textContent = 'Stop';
-  elements.chatStatus.textContent = 'Listening... speak one or two English sentences.';
-  recognition.start();
+  startDictation({
+    input: elements.chatInput,
+    status: elements.chatVoiceStatus,
+    button: elements.chatMic,
+    idleText: 'Record voice',
+    listeningText: 'Listening... speak one or two English sentences.',
+    readyText: 'Transcript ready. Edit it if needed, then tap Send to AI.'
+  });
 }
 
 function clearChat() {
   window.speechSynthesis?.cancel();
+  stopActiveDictation();
   state.chatMessages = [];
   localStorage.removeItem('englishSpeakingCoachChat');
   loadChatMessages();
+  elements.chatInput.value = '';
+  setVoiceStatus(elements.chatVoiceStatus, 'Step 1: record your voice or type below.');
 }
 
 document.querySelector('#requestFeedback').addEventListener('click', requestFeedback);
@@ -1598,6 +1705,9 @@ elements.feedbackModalContent.addEventListener('click', event => {
   }
   if (event.target?.id === 'sendFeedbackFollowup') {
     sendFeedbackFollowupAnswer();
+  }
+  if (event.target?.id === 'feedbackFollowupVoice') {
+    startFeedbackFollowupVoiceInput();
   }
   const saveButton = event.target?.closest?.('.save-mistake-button');
   if (saveButton) {
@@ -1641,6 +1751,8 @@ elements.chatInput.addEventListener('keydown', event => {
   }
 });
 elements.requestFollowups.addEventListener('click', requestFollowups);
+elements.roleOpeningVoice?.addEventListener('click', startRoleOpeningVoiceInput);
+elements.followupVoice?.addEventListener('click', startFollowupVoiceInput);
 elements.sendFollowupAnswer.addEventListener('click', sendFollowupAnswer);
 elements.requestSceneFeedback.addEventListener('click', () => requestSceneFeedback());
 elements.clearFollowups.addEventListener('click', clearFollowups);

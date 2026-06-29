@@ -82,7 +82,7 @@
 
             <div class="transcript-card" aria-label="Record and transcript">
               <label class="field-label" for="answerInput">Transcript</label>
-              <p id="recordingStatus">Tap Record, speak naturally, then edit the transcript before feedback.</p>
+              <p class="voice-step-status" id="recordingStatus">Step 1: tap Record, speak naturally, then edit the transcript before feedback.</p>
               <div class="recording-actions">
                 <button type="button" class="record-button" id="recordButton">
                   <span>Record</span>
@@ -175,8 +175,10 @@
             </div>
             <div class="role-opening-card">
               <span class="label">Your opening reply</span>
+              <p class="voice-step-status" id="roleOpeningVoiceStatus">Type your reply, or record your voice and edit the transcript before starting.</p>
               <textarea id="roleOpeningAnswer" rows="6" placeholder="Write your first reply to the role, or reuse today's transcript by leaving this blank."></textarea>
               <div class="practice-actions">
+                <button type="button" class="secondary-button" id="roleOpeningVoice">Record voice</button>
                 <button type="button" class="primary-button" id="requestFollowups">Start scene</button>
                 <button type="button" class="secondary-button" id="clearFollowups">Reset scene</button>
               </div>
@@ -194,8 +196,10 @@
             <div class="followup-response" id="followupResponse" hidden>
               <span class="label">Your scene reply</span>
               <p class="muted" id="selectedFollowupQuestion"></p>
+              <p class="voice-step-status" id="followupVoiceStatus">Answer by typing or recording. Your transcript will appear below.</p>
               <textarea id="followupAnswer" rows="4" placeholder="Reply to the AI role in English..."></textarea>
               <div class="practice-actions next-actions">
+                <button type="button" class="secondary-button" id="followupVoice">Record voice</button>
                 <button type="button" class="primary-button" id="sendFollowupAnswer">Send scene reply</button>
               </div>
             </div>
@@ -214,22 +218,23 @@
               <div>
                 <span class="label">Daily AI chat</span>
                 <h2 id="chatModalTitle">Practice natural English</h2>
-                <p class="muted" id="chatStatus">Chat with your coach. Use text or voice input, then listen or read the reply.</p>
+                <p class="muted" id="chatStatus">Record or type one English message, check the transcript, then send it to AI.</p>
               </div>
               <button type="button" class="secondary-button compact-button" id="closeChat">Back to today</button>
             </div>
             <div class="chat-toolbar">
-              <label><input type="radio" name="chatInputMode" value="text" checked> Text input</label>
-              <label><input type="radio" name="chatInputMode" value="voice"> Voice input</label>
-              <label><input type="radio" name="chatOutputMode" value="text" checked> Text output</label>
-              <label><input type="radio" name="chatOutputMode" value="voice"> Voice output</label>
+              <label class="toggle-pill"><input type="checkbox" id="chatVoiceOutput"> AI voice reply</label>
               <button type="button" class="secondary-button compact-button" id="clearChat">Clear chat</button>
             </div>
             <div class="chat-messages" id="chatMessages" aria-live="polite"></div>
-            <div class="chat-input-row">
-              <button type="button" class="secondary-button" id="chatMic">Speak</button>
+            <div class="voice-step-card">
+              <div>
+                <span class="label">Your message</span>
+                <p class="voice-step-status" id="chatVoiceStatus">Step 1: record your voice or type below.</p>
+              </div>
+              <button type="button" class="secondary-button" id="chatMic">Record voice</button>
               <textarea id="chatInput" rows="3" placeholder="Type in English, or switch to Voice input and speak..."></textarea>
-              <button type="button" class="primary-button" id="sendChat">Send</button>
+              <button type="button" class="primary-button" id="sendChat">Send to AI</button>
             </div>
           </div>
         </section>

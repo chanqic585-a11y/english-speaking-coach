@@ -470,6 +470,49 @@ textarea {
   box-shadow: 0 14px 34px rgba(220, 38, 38, 0.18);
 }
 
+button.recording {
+  border-color: transparent;
+  background: var(--color-danger);
+  color: #ffffff;
+}
+
+.voice-step-card,
+.voice-step-status {
+  border-radius: var(--radius-md);
+}
+
+.voice-step-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  background: var(--color-surface-soft);
+}
+
+.voice-step-status {
+  margin: var(--space-2) 0 var(--space-3);
+  padding: 10px 12px;
+  background: var(--color-surface-blue);
+  color: var(--color-primary-ink);
+  font-size: var(--font-size-sm);
+  font-weight: 750;
+}
+
+.voice-step-status.listening {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.voice-step-status.ready {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.voice-step-status.issue {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
 .voice-lab {
   display: grid;
   gap: var(--space-3);
@@ -521,7 +564,8 @@ textarea {
   font-size: var(--font-size-base);
 }
 
-.chat-input-row textarea {
+.chat-input-row textarea,
+.voice-step-card textarea {
   min-height: 96px;
   max-height: 180px;
 }
@@ -906,11 +950,17 @@ textarea:focus {
 }
 
 .chat-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--color-line);
 }
 
-.chat-toolbar label {
+.chat-toolbar label,
+.toggle-pill {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);

@@ -800,6 +800,46 @@ Scoring rules:
 Use Chinese for explanations and English for improved sentences. Limit grammarFixes to 2-4 important corrections. Keep the natural version close to the user's meaning and level.`;
 }
 
+function buildShadowingFeedbackPrompt(payload, recording) {
+  const repeatScript = String(payload.repeatScript || '').trim();
+  const shadowingTranscript = String(payload.shadowingTranscript || '').trim();
+  const originalAnswer = String(payload.originalAnswer || '').trim();
+  const metrics = speechMetrics(shadowingTranscript || repeatScript, recording);
+
+  return `You are an English shadowing coach for a Chinese learner.
+
+The learner first received an improved repeat script, then recorded themselves reading it aloud. Compare the learner's shadowing audio to the target repeat script.
+
+Target repeat script:
+${repeatScript}
+
+Browser speech transcript from the shadowing attempt:
+${shadowingTranscript || '[No transcript captured. Please evaluate mainly from the attached audio.]'}
+
+Original learner answer before feedback:
+${originalAnswer || '[No original answer provided]'}
+
+Audio context:
+Audio is attached. Recording duration: ${metrics.durationSeconds} seconds. Transcript word count: ${metrics.words}. Estimated speed: ${metrics.wordsPerMinute || 'unknown'} WPM.
+
+Return valid JSON only with:
+shadowingScore: number
+accuracyNote: string
+pronunciationNote: string
+fluencyNote: string
+missedOrChangedWords: array of {target:string, heardOrTyped:string, note:string}
+repeatAgainScript: string
+nextDrill: string
+
+Rules:
+- shadowingScore is 0-100 based on accuracy, pronunciation clarity, rhythm, and fluency.
+- If the browser transcript is empty, use the audio and say that the comparison is audio-based.
+- missedOrChangedWords should list 0-6 important target words or phrases that were missed, changed, unclear, or need more practice. Be cautious when uncertain.
+- repeatAgainScript should be a short version of the target script or the most important sentence to repeat again.
+- nextDrill should be one practical English drill, for example "First slowly, then naturally: ...".
+- Use Chinese for notes and English for scripts/drills.`;
+}
+
 function speedLevel(wordsPerMinute) {
   if (!wordsPerMinute) return 'text estimate only';
   if (wordsPerMinute < 90) return 'too slow';
@@ -1379,6 +1419,74 @@ async function requestGeminiFeedback(answer, context, recording = null) {
   }
 }
 
+async function requestGeminiShadowingFeedback(payload, recording) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  if (!apiKey) {
+    const error = new Error('GEMINI_API_KEY is not configured. Copy .env.example to .env and add your key.');
+    error.code = 'missing_api_key';
+    throw error;
+  }
+
+  const filePath = recordingFilePath(recording);
+  if (!filePath || !fs.existsSync(filePath)) {
+    const error = new Error('Shadowing recording file was not found.');
+    error.code = 'missing_recording_file';
+    throw error;
+  }
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: buildShadowingFeedbackPrompt(payload, recording) },
+            {
+              inlineData: {
+                mimeType: recording.mimeType || 'audio/webm',
+                data: fs.readFileSync(filePath).toString('base64')
+              }
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.25
+      }
+    })
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    const error = new Error(`Gemini request failed with status ${response.status}.`);
+    error.details = raw;
+    throw error;
+  }
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { rawText: raw };
+  }
+
+  const text = extractGeminiText(data);
+  if (!text) return { rawResponse: data };
+
+  try {
+    return JSON.parse(stripCodeFence(text));
+  } catch {
+    return { rawText: text };
+  }
+}
+
 async function requestOpenAiFeedback(answer, context, recording = null) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -1743,6 +1851,35 @@ async function handleApi(req, res) {
         turns
       });
       sendJson(res, 200, { followup: enforceFeedbackFollowupRounds(followup, turns) });
+    } catch (error) {
+      sendJson(res, error.code === 'missing_api_key' ? 400 : 502, {
+        error: error.message,
+        details: error.details || null
+      });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/shadowing-feedback') {
+    const payload = JSON.parse(await readBody(req) || '{}');
+    const repeatScript = String(payload.repeatScript || '').trim();
+    const recording = findRecording(String(payload.recordingId || ''));
+    if (!repeatScript) {
+      sendJson(res, 400, { error: 'Repeat script is required before shadowing feedback.' });
+      return;
+    }
+    if (!recording) {
+      sendJson(res, 400, { error: 'Record your repeat script before requesting shadowing feedback.' });
+      return;
+    }
+    try {
+      const feedback = await requestGeminiShadowingFeedback({
+        repeatScript,
+        shadowingTranscript: payload.shadowingTranscript || recording.transcript || '',
+        originalAnswer: payload.originalAnswer || '',
+        originalFeedback: payload.originalFeedback || {}
+      }, recording);
+      sendJson(res, 200, { feedback });
     } catch (error) {
       sendJson(res, error.code === 'missing_api_key' ? 400 : 502, {
         error: error.message,

@@ -4,6 +4,16 @@
   mediaRecorder: null,
   audioChunks: [],
   speechRecognition: null,
+  shadowMediaRecorder: null,
+  shadowAudioChunks: [],
+  shadowRecognition: null,
+  shadowTranscript: '',
+  shadowRecordingStartedAt: null,
+  shadowRecordingId: null,
+  shadowAudioUrl: '',
+  shadowingFeedback: null,
+  shadowingLoading: false,
+  isShadowRecording: false,
   chatRecognition: null,
   chatMessages: [],
   feedbackAnswer: '',
@@ -285,10 +295,92 @@ function renderFeedbackFollowupPanel() {
   `;
 }
 
+function resetShadowingState() {
+  if (state.shadowRecognition) {
+    try { state.shadowRecognition.stop(); } catch {}
+  }
+  if (state.shadowMediaRecorder && state.shadowMediaRecorder.state !== 'inactive') {
+    try { state.shadowMediaRecorder.stop(); } catch {}
+  }
+  if (state.shadowAudioUrl) {
+    URL.revokeObjectURL(state.shadowAudioUrl);
+  }
+  state.shadowMediaRecorder = null;
+  state.shadowAudioChunks = [];
+  state.shadowRecognition = null;
+  state.shadowTranscript = '';
+  state.shadowRecordingStartedAt = null;
+  state.shadowRecordingId = null;
+  state.shadowAudioUrl = '';
+  state.shadowingFeedback = null;
+  state.shadowingLoading = false;
+  state.isShadowRecording = false;
+}
+
+function renderShadowingPanel() {
+  if (!state.feedback) return '';
+  const repeatScript = state.feedback.repeatScript || state.feedback.naturalVersion || '';
+  if (!repeatScript) return '';
+  const buttonText = state.isShadowRecording ? 'Stop shadowing' : 'Record repeat script';
+  const status = state.isShadowRecording
+    ? 'Recording your repeat script now...'
+    : state.shadowingLoading
+      ? 'Saving your shadowing audio and asking Gemini to compare it...'
+      : state.shadowingFeedback
+        ? 'Shadowing feedback is ready.'
+        : 'Read the repeat script aloud. Gemini will compare your recording with the target script.';
+  const transcriptValue = escapeHtml(state.shadowTranscript);
+  const audio = state.shadowAudioUrl
+    ? `<audio controls src="${escapeHtml(state.shadowAudioUrl)}"></audio>`
+    : '';
+  const feedback = state.shadowingFeedback
+    ? renderShadowingFeedback(state.shadowingFeedback)
+    : '';
+
+  return `
+    <section class="shadowing-box" aria-label="Shadowing practice">
+      <div>
+        <span class="label">Shadowing practice</span>
+        <h3>Record yourself reading the repeat script</h3>
+        <p class="shadowing-script">${escapeHtml(repeatScript)}</p>
+      </div>
+      <div class="shadowing-actions">
+        <button type="button" class="primary-button" id="toggleShadowingRecording" ${state.shadowingLoading ? 'disabled' : ''}>${buttonText}</button>
+        <span class="muted">${escapeHtml(status)}</span>
+      </div>
+      ${audio}
+      <label class="field-label" for="shadowingTranscript">Shadowing transcript</label>
+      <textarea id="shadowingTranscript" rows="3" placeholder="Auto transcript appears here when supported. You can edit it before Gemini compares.">${transcriptValue}</textarea>
+      ${feedback}
+    </section>
+  `;
+}
+
+function renderShadowingFeedback(feedback) {
+  if (feedback.rawText || feedback.rawResponse) {
+    return `<div class="shadowing-result"><strong>Raw shadowing feedback</strong><pre>${escapeHtml(feedback.rawText || JSON.stringify(feedback.rawResponse, null, 2))}</pre></div>`;
+  }
+  const missed = Array.isArray(feedback.missedOrChangedWords) && feedback.missedOrChangedWords.length
+    ? `<ul>${feedback.missedOrChangedWords.map(item => `<li><strong>${escapeHtml(item.target || '')}</strong>${item.heardOrTyped ? ` -> ${escapeHtml(item.heardOrTyped)}` : ''}<br><span>${escapeHtml(item.note || '')}</span></li>`).join('')}</ul>`
+    : '<p>No major missed or changed words returned.</p>';
+
+  return `
+    <div class="shadowing-result">
+      <div class="score-card"><span>Shadowing</span><strong>${escapeHtml(feedback.shadowingScore ?? 'Audio checked')}</strong></div>
+      <p><strong>Accuracy:</strong> ${escapeHtml(feedback.accuracyNote || '')}</p>
+      <p><strong>Pronunciation:</strong> ${escapeHtml(feedback.pronunciationNote || '')}</p>
+      <p><strong>Fluency:</strong> ${escapeHtml(feedback.fluencyNote || '')}</p>
+      <div><strong>Missed or changed words</strong>${missed}</div>
+      <p><strong>Repeat again:</strong> ${escapeHtml(feedback.repeatAgainScript || '')}</p>
+      <p><strong>Next drill:</strong> ${escapeHtml(feedback.nextDrill || '')}</p>
+    </div>
+  `;
+}
+
 function renderFeedbackModalContent() {
   if (!state.feedback) return;
   const details = buildFeedbackDetails(state.feedback);
-  elements.feedbackModalContent.innerHTML = `${details}${renderFeedbackFollowupPanel()}`;
+  elements.feedbackModalContent.innerHTML = `${details}${renderShadowingPanel()}${renderFeedbackFollowupPanel()}`;
 }
 
 async function requestFeedbackFollowup() {
@@ -357,6 +449,9 @@ function openFeedbackModal() {
 }
 
 function closeFeedbackModal() {
+  if (state.isShadowRecording) {
+    stopShadowingRecording();
+  }
   elements.feedbackModal.hidden = true;
   document.body.classList.remove('modal-open');
 }
@@ -377,6 +472,7 @@ function renderFeedbackLoading() {
 
 function renderFeedback(feedback) {
   state.feedback = feedback;
+  resetShadowingState();
   state.feedbackFollowupQuestion = '';
   state.feedbackFollowupTurns = [];
   state.feedbackFollowupComplete = false;
@@ -391,9 +487,9 @@ function renderFeedback(feedback) {
   const details = buildFeedbackDetails(feedback);
   elements.feedbackContent.innerHTML = details;
   elements.feedbackModalTitle.textContent = 'Feedback is ready';
-  elements.feedbackModalStatus.textContent = 'Start with the scores and repeat script, then answer the follow-up question.';
+  elements.feedbackModalStatus.textContent = 'Start with the scores, record the repeat script, then answer the follow-up question.';
   elements.feedbackModalSummary.innerHTML = renderFeedbackSummary(feedback);
-  elements.feedbackModalContent.innerHTML = `${details}${renderFeedbackFollowupPanel()}`;
+  renderFeedbackModalContent();
   openFeedbackModal();
   requestFeedbackFollowup();
 }
@@ -734,6 +830,134 @@ async function saveRecordingDraft() {
   elements.recordingStatus.textContent = transcript
     ? `Recording saved: ${saved.recording.fileName}. Review or edit the transcript, then submit feedback.`
     : `Recording saved: ${saved.recording.fileName}. Type or edit the transcript if needed, then submit feedback.`;
+}
+
+function startShadowingRecognition() {
+  const Recognition = getSpeechRecognition();
+  if (!Recognition) return;
+
+  const recognition = new Recognition();
+  recognition.lang = 'en-US';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.onresult = event => {
+    let finalText = state.shadowTranscript;
+    let interim = '';
+    for (let index = event.resultIndex; index < event.results.length; index++) {
+      const transcript = event.results[index][0]?.transcript || '';
+      if (event.results[index].isFinal) {
+        finalText = `${finalText} ${transcript}`.trim();
+      } else {
+        interim = `${interim} ${transcript}`.trim();
+      }
+    }
+    state.shadowTranscript = finalText;
+    const input = document.querySelector('#shadowingTranscript');
+    if (input) input.value = [finalText, interim].filter(Boolean).join(' ');
+  };
+  recognition.onerror = () => {};
+  try {
+    recognition.start();
+    state.shadowRecognition = recognition;
+  } catch {
+    state.shadowRecognition = null;
+  }
+}
+
+async function startShadowingRecording() {
+  if (!state.feedback || state.isShadowRecording) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    state.shadowAudioChunks = [];
+    state.shadowTranscript = '';
+    state.shadowRecordingStartedAt = Date.now();
+    state.shadowRecordingId = null;
+    state.shadowingFeedback = null;
+    if (state.shadowAudioUrl) {
+      URL.revokeObjectURL(state.shadowAudioUrl);
+      state.shadowAudioUrl = '';
+    }
+    const recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = event => {
+      if (event.data.size > 0) state.shadowAudioChunks.push(event.data);
+    };
+    recorder.onstop = () => {
+      stream.getTracks().forEach(track => track.stop());
+      saveShadowingRecordingAndRequestFeedback().catch(error => {
+        state.shadowingLoading = false;
+        state.shadowingFeedback = { rawText: `Shadowing feedback unavailable: ${error.message}` };
+        renderFeedbackModalContent();
+      });
+    };
+    state.shadowMediaRecorder = recorder;
+    recorder.start();
+    state.isShadowRecording = true;
+    startShadowingRecognition();
+    renderFeedbackModalContent();
+  } catch (error) {
+    state.shadowingFeedback = { rawText: `Microphone permission issue: ${error.message || 'access denied'}` };
+    renderFeedbackModalContent();
+  }
+}
+
+function stopShadowingRecording() {
+  if (state.shadowRecognition) {
+    try { state.shadowRecognition.stop(); } catch {}
+    state.shadowRecognition = null;
+  }
+  if (state.shadowMediaRecorder && state.shadowMediaRecorder.state !== 'inactive') {
+    state.shadowMediaRecorder.stop();
+  }
+  state.isShadowRecording = false;
+  state.shadowingLoading = true;
+  renderFeedbackModalContent();
+}
+
+async function saveShadowingRecordingAndRequestFeedback() {
+  const blob = new Blob(state.shadowAudioChunks, { type: state.shadowMediaRecorder?.mimeType || 'audio/webm' });
+  if (blob.size < 100) {
+    throw new Error('The shadowing recording was too short. Try again and read the repeat script aloud.');
+  }
+  state.shadowAudioUrl = URL.createObjectURL(blob);
+  const transcriptInput = document.querySelector('#shadowingTranscript');
+  const transcript = (transcriptInput?.value || state.shadowTranscript || '').trim();
+  state.shadowTranscript = transcript;
+  const audioBase64 = await blobToBase64(blob);
+  const durationSeconds = state.shadowRecordingStartedAt ? Math.round((Date.now() - state.shadowRecordingStartedAt) / 1000) : 0;
+  const saved = await api('/api/recordings', {
+    method: 'POST',
+    body: JSON.stringify({
+      audioBase64,
+      mimeType: blob.type || 'audio/webm',
+      transcript,
+      topic: state.topic?.topic || '',
+      focus: 'shadowing repeat script',
+      prompt: state.feedback?.repeatScript || state.feedback?.naturalVersion || '',
+      durationSeconds
+    })
+  });
+  state.shadowRecordingId = saved.recording.id;
+  const data = await api('/api/shadowing-feedback', {
+    method: 'POST',
+    body: JSON.stringify({
+      repeatScript: state.feedback?.repeatScript || state.feedback?.naturalVersion || '',
+      shadowingTranscript: transcript,
+      originalAnswer: state.feedbackAnswer,
+      originalFeedback: state.feedback,
+      recordingId: state.shadowRecordingId
+    })
+  });
+  state.shadowingFeedback = data.feedback;
+  state.shadowingLoading = false;
+  renderFeedbackModalContent();
+}
+
+function toggleShadowingRecording() {
+  if (state.isShadowRecording) {
+    stopShadowingRecording();
+  } else {
+    startShadowingRecording();
+  }
 }
 
 function toggleRecording() {
@@ -1245,12 +1469,20 @@ elements.openFeedbackModal.addEventListener('click', openFeedbackModal);
 elements.closeFeedbackModal.addEventListener('click', closeFeedbackModal);
 elements.feedbackModalBackdrop.addEventListener('click', closeFeedbackModal);
 elements.feedbackModalContent.addEventListener('click', event => {
+  if (event.target?.id === 'toggleShadowingRecording') {
+    toggleShadowingRecording();
+  }
   if (event.target?.id === 'sendFeedbackFollowup') {
     sendFeedbackFollowupAnswer();
   }
   const saveButton = event.target?.closest?.('.save-mistake-button');
   if (saveButton) {
     saveMistakeFromButton(saveButton).catch(renderFeedbackError);
+  }
+});
+elements.feedbackModalContent.addEventListener('input', event => {
+  if (event.target?.id === 'shadowingTranscript') {
+    state.shadowTranscript = event.target.value;
   }
 });
 elements.feedbackContent.addEventListener('click', event => {

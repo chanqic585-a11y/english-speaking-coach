@@ -78,6 +78,16 @@ The app saves the audio locally under `data/recordings/` and places the transcri
 
 AI feedback opens in a dialog automatically. The dialog shows request progress first, then highlights pronunciation, fluency, speaking speed, and the repeat script before the detailed grammar and logic notes.
 
+After the repeat script appears, use `Shadowing practice` in the same dialog:
+
+1. Click `Record repeat script`.
+2. Read the repeat script aloud.
+3. Click `Stop shadowing`.
+4. Review or edit the shadowing transcript if your browser captured one.
+5. Gemini compares your shadowing audio with the target repeat script and returns a shadowing score, accuracy note, pronunciation note, fluency note, missed or changed words, and a next drill.
+
+This makes the main loop: record your answer -> get AI feedback -> repeat the improved script -> record the repeat script -> get shadowing feedback.
+
 After feedback is ready, the dialog automatically starts a short `Follow-up practice` loop. Gemini asks one follow-up question based on your answer and feedback, you answer in English, and Gemini gives a light correction plus the next question. The loop stops after 2-3 rounds with a short closing summary.
 
 When Gemini feedback is enabled, recorded sessions also send the saved audio to Gemini so the feedback can include:

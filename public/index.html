@@ -3,7 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Speaking Coach">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>English Speaking Coach</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -15,6 +22,7 @@
         <p class="topbar-subtitle">Practice daily, workplace, customer, and mechanical engineering English.</p>
       </div>
       <div class="topbar-actions">
+        <button type="button" class="secondary-button install-button" id="installApp" hidden>Install app</button>
         <button type="button" class="primary-button" id="openChat">AI Daily Chat</button>
         <div class="status-pill" id="apiStatus">Checking API key</div>
       </div>

@@ -84,6 +84,7 @@ const elements = {
   feedbackModalContent: document.querySelector('#feedbackModalContent'),
   openFeedbackModal: document.querySelector('#openFeedbackModal'),
   closeFeedbackModal: document.querySelector('#closeFeedbackModal'),
+  installApp: document.querySelector('#installApp'),
   openChat: document.querySelector('#openChat'),
   chatModal: document.querySelector('#chatModal'),
   chatPanel: document.querySelector('#chatModal .chat-panel'),
@@ -107,6 +108,8 @@ const elements = {
   followupCoaching: document.querySelector('#followupCoaching')
 };
 
+let deferredInstallPrompt = null;
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
@@ -119,6 +122,40 @@ async function api(path, options = {}) {
     throw error;
   }
   return data;
+}
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
+function setupInstallPrompt() {
+  window.addEventListener('beforeinstallprompt', event => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    if (elements.installApp) {
+      elements.installApp.hidden = false;
+    }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    if (elements.installApp) {
+      elements.installApp.hidden = true;
+    }
+  });
+}
+
+async function installApp() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice.catch(() => null);
+  deferredInstallPrompt = null;
+  if (elements.installApp) {
+    elements.installApp.hidden = true;
+  }
 }
 
 function renderTopic(topic) {
@@ -1465,6 +1502,7 @@ function clearChat() {
 
 document.querySelector('#requestFeedback').addEventListener('click', requestFeedback);
 elements.copyPhoneUrl.addEventListener('click', copyPhoneUrl);
+elements.installApp?.addEventListener('click', installApp);
 elements.openFeedbackModal.addEventListener('click', openFeedbackModal);
 elements.closeFeedbackModal.addEventListener('click', closeFeedbackModal);
 elements.feedbackModalBackdrop.addEventListener('click', closeFeedbackModal);
@@ -1544,6 +1582,9 @@ document.querySelector('#loadTopic').addEventListener('click', async () => {
   const category = encodeURIComponent(elements.categoryFilter.value || '');
   renderTopic(await api(`/api/today?random=1&exclude=${exclude}&level=${level}&category=${category}`));
 });
+
+registerServiceWorker();
+setupInstallPrompt();
 
 loadInitialData().catch(error => {
   elements.feedbackState.textContent = 'App setup issue';

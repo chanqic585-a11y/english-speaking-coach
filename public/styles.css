@@ -94,6 +94,7 @@ textarea:focus, input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px
 .primary-button, .secondary-button, .icon-button { border-radius: 8px; border: 1px solid transparent; padding: 10px 13px; font-weight: 700; }
 .primary-button { background: var(--accent); color: #fff; }
 .secondary-button, .icon-button { background: var(--panel-soft); border-color: var(--line); color: var(--ink); }
+.install-button { border-color: #bae6fd; background: #e0f2fe; color: #075985; }
 .compact-button { padding: 7px 10px; font-size: 13px; }
 .primary-button:disabled, .secondary-button:disabled { opacity: 0.55; cursor: not-allowed; }
 .muted { color: var(--muted); font-size: 14px; }

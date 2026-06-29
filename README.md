@@ -20,17 +20,61 @@ http://localhost:4173
 
 ## Use it on your phone
 
-The phone and computer must be on the same Wi-Fi.
+For daily phone practice, use the permanent deployed URL from the `Deploy a permanent phone app URL` section below. After opening the URL on your phone, install it to the home screen:
+
+- Android Chrome: tap `Install app` if it appears, or open the browser menu and choose `Add to Home screen`.
+- iPhone Safari: tap Share, then choose `Add to Home Screen`.
+
+The installed PWA keeps the same speaking recorder, AI feedback, role scenarios, shadowing practice, vocabulary book, and mistake book. AI features still need the deployed server to have `GEMINI_API_KEY` configured.
+
+For local testing only, the phone and computer must be on the same Wi-Fi.
 
 1. Double-click `English Speaking Coach.cmd` on the desktop.
 2. Keep the computer awake while practicing.
 3. On the computer page, copy the `Phone access` link.
 4. Open that link in your phone browser.
-5. Tap the answer box, tap the microphone on your phone keyboard, and speak your English answer.
+5. Use `Tap to Record` or `Hold to Speak` for built-in recording.
 
 If the phone cannot open the link, allow Node.js through Windows Firewall for private networks. Some hotel, school, company, or public Wi-Fi networks block phone-to-computer access.
 
-## Use it away from the same Wi-Fi
+## Deploy a permanent phone app URL
+
+Temporary tunnel links are not reliable enough for daily practice. Deploy this project as a Node web service and use the HTTPS URL as your permanent phone entry.
+
+### Render one-time setup
+
+1. Push the latest code to GitHub.
+2. Open [Render](https://render.com/) and sign in.
+3. Create a `New Web Service`.
+4. Connect the GitHub repo `chanqic585-a11y/english-speaking-coach`.
+5. Use these settings:
+
+```text
+Runtime: Node
+Build Command: npm install
+Start Command: npm start
+```
+
+6. Add environment variables:
+
+```env
+AI_PROVIDER=gemini
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_API_KEY=your_gemini_key_here
+```
+
+7. Deploy and open the Render URL on your phone.
+8. Add the site to your phone home screen.
+
+The repo includes `render.yaml`, so Render can also detect the web service configuration from the repository.
+
+Important data note: the free Render filesystem is not a database. Vocabulary, mistakes, sessions, and recordings may reset when the service restarts or redeploys. The first stable version prioritizes a permanent phone URL and app install experience. For long-term cloud data, add a hosted database or Render persistent disk later.
+
+### Optional custom domain
+
+After the Render service works, you can buy or use a domain and add it in Render under `Settings -> Custom Domains`. Render will show the DNS records to add at your domain provider.
+
+## Temporary tunnel fallback
 
 Run:
 
@@ -38,7 +82,7 @@ Run:
 D:\Codex-Workspace\english-speaking-coach\Start-English-Speaking-Coach-Internet.cmd
 ```
 
-This starts a temporary Cloudflare Tunnel and opens a public `trycloudflare.com` link. The link is also copied to your clipboard, so you can send it to your phone and open it on mobile data or another Wi-Fi.
+This starts a temporary Cloudflare Tunnel and opens a public `trycloudflare.com` link. Use this only as a fallback, because quick tunnel links can fail DNS checks, be blocked by network security tools, or change each time you restart them.
 
 Keep this computer awake while using the public link. The quick tunnel is temporary and can change each time you restart it.
 

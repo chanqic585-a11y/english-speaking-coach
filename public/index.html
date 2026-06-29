@@ -275,9 +275,15 @@
           <div class="mistake-grid">
             <form class="mistake-form" id="mistakeForm">
               <textarea id="mistakeOriginal" rows="3" placeholder="Original sentence"></textarea>
-              <textarea id="mistakeImproved" rows="3" placeholder="Improved sentence"></textarea>
-              <input id="mistakeType" placeholder="Error type, e.g. grammar / logic / natural expression">
-              <input id="mistakeNote" placeholder="Short note">
+              <textarea id="mistakeImproved" rows="3" placeholder="Corrected sentence"></textarea>
+              <select id="mistakeType">
+                <option value="grammar">grammar</option>
+                <option value="vocabulary">vocabulary</option>
+                <option value="pronunciation">pronunciation</option>
+                <option value="logic">logic</option>
+                <option value="naturalness">naturalness</option>
+              </select>
+              <input id="mistakeNote" placeholder="Explanation">
               <button type="submit" class="secondary-button">Add mistake</button>
             </form>
             <div class="review-box">

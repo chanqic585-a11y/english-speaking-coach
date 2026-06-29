@@ -305,6 +305,14 @@ function buildFeedbackDetails(feedback) {
     ? `<ul>${feedback.hardWordsToRepeat.map(item => `<li><strong>${escapeHtml(item.word || '')}</strong><br><span>${escapeHtml(item.reason || '')}</span><br><span>${escapeHtml(item.repeatDrill || '')}</span></li>`).join('')}</ul>`
     : '<p>No hard words returned yet.</p>';
 
+  const naturalSave = feedback.naturalVersion
+    ? `<button type="button" class="secondary-button compact-button save-mistake-button"
+        data-original="${escapeHtml(state.feedbackAnswer || '')}"
+        data-improved="${escapeHtml(feedback.naturalVersion || '')}"
+        data-type="naturalness"
+        data-note="Natural expression upgrade from AI feedback.">Save mistake</button>`
+    : '';
+
   return [
     card('Quick diagnosis', escapeHtml(feedback.quickDiagnosis || 'No quick diagnosis returned.')),
     card('Pronunciation, fluency, pause, speed', speechScores),
@@ -312,7 +320,7 @@ function buildFeedbackDetails(feedback) {
     card('Possible pronunciation issues', pronunciationIssues),
     card('Grammar fixes', grammar),
     card('Logic and coherence', logic),
-    card('Natural version', `<p>${escapeHtml(feedback.naturalVersion || '')}</p>`),
+    card('Natural version', `<p>${escapeHtml(feedback.naturalVersion || '')}</p>${naturalSave}`),
     card('Repeat script', `<p>${escapeHtml(feedback.repeatScript || '')}</p>`),
     card('Reusable expressions', expressions)
   ].join('');
@@ -722,8 +730,9 @@ function renderMistakes(items, reviewItems) {
       <article class="review-card mistake-review-card">
         <div>
           <strong>${escapeHtml(item.originalSentence)}</strong>
-          <p>${escapeHtml(item.improvedSentence)}</p>
-          <small>${escapeHtml(item.errorType || 'grammar')} - next: ${escapeHtml(item.nextReviewAt || 'today')}</small>
+          <p>${escapeHtml(item.correctedSentence || item.improvedSentence)}</p>
+          ${item.explanation || item.note ? `<small>${escapeHtml(item.explanation || item.note)}</small>` : ''}
+          <small>${escapeHtml(item.mistakeType || item.errorType || 'grammar')} - ${escapeHtml(item.reviewStatus || item.status || 'new')} - next: ${escapeHtml(item.nextReviewAt || 'today')}</small>
         </div>
         <div class="review-actions">
           <button type="button" class="secondary-button" data-mistake-review="${escapeHtml(item.id)}" data-result="again">Again</button>
@@ -746,12 +755,13 @@ function renderMistakes(items, reviewItems) {
         <p>${escapeHtml(item.originalSentence)}</p>
       </div>
       <div>
-        <span class="label">Improved</span>
-        <p>${escapeHtml(item.improvedSentence)}</p>
+        <span class="label">Corrected</span>
+        <p>${escapeHtml(item.correctedSentence || item.improvedSentence)}</p>
+        ${item.explanation || item.note ? `<small>${escapeHtml(item.explanation || item.note)}</small>` : ''}
       </div>
       <div class="mistake-meta">
-        <span class="word-status">${statusLabel(item.status)}</span>
-        <small>${escapeHtml(item.errorType || 'grammar')} - next: ${escapeHtml(item.nextReviewAt || 'today')}</small>
+        <span class="word-status">${statusLabel(item.reviewStatus || item.status)}</span>
+        <small>${escapeHtml(item.mistakeType || item.errorType || 'grammar')} - next: ${escapeHtml(item.nextReviewAt || 'today')}</small>
       </div>
     </article>
   `).join('');
@@ -771,13 +781,13 @@ async function addMistakeFromForm(event) {
   event.preventDefault();
   const payload = {
     originalSentence: elements.mistakeOriginal.value.trim(),
-    improvedSentence: elements.mistakeImproved.value.trim(),
-    errorType: elements.mistakeType.value.trim(),
-    note: elements.mistakeNote.value.trim(),
+    correctedSentence: elements.mistakeImproved.value.trim(),
+    mistakeType: elements.mistakeType.value.trim(),
+    explanation: elements.mistakeNote.value.trim(),
     source: 'manual'
   };
-  if (!payload.originalSentence || !payload.improvedSentence) {
-    elements.mistakeCount.textContent = 'Original and improved required';
+  if (!payload.originalSentence || !payload.correctedSentence) {
+    elements.mistakeCount.textContent = 'Original and corrected required';
     return;
   }
   await addMistake(payload);
@@ -787,12 +797,12 @@ async function addMistakeFromForm(event) {
 async function saveMistakeFromButton(button) {
   const payload = {
     originalSentence: button.dataset.original || '',
-    improvedSentence: button.dataset.improved || '',
-    errorType: button.dataset.type || 'grammar',
-    note: button.dataset.note || '',
+    correctedSentence: button.dataset.improved || '',
+    mistakeType: button.dataset.type || 'grammar',
+    explanation: button.dataset.note || '',
     source: 'AI feedback'
   };
-  if (!payload.originalSentence || !payload.improvedSentence) return;
+  if (!payload.originalSentence || !payload.correctedSentence) return;
   button.disabled = true;
   button.textContent = 'Saved';
   await addMistake(payload);

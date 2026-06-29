@@ -676,13 +676,23 @@ function normalizeVocabularyPayload(payload) {
 }
 
 function normalizeMistakePayload(payload) {
+  const mistakeType = String(payload.mistakeType || payload.errorType || '').trim() || 'grammar';
+  const reviewStatus = ['new', 'learning', 'familiar', 'mastered'].includes(payload.reviewStatus || payload.status)
+    ? (payload.reviewStatus || payload.status)
+    : 'new';
+  const correctedSentence = String(payload.correctedSentence || payload.improvedSentence || '').trim();
+  const explanation = String(payload.explanation || payload.note || '').trim();
   return {
     originalSentence: String(payload.originalSentence || '').trim(),
-    improvedSentence: String(payload.improvedSentence || '').trim(),
-    errorType: String(payload.errorType || '').trim() || 'grammar',
-    note: String(payload.note || '').trim(),
+    correctedSentence,
+    improvedSentence: correctedSentence,
+    mistakeType,
+    errorType: mistakeType,
+    explanation,
+    note: explanation,
     source: String(payload.source || '').trim() || 'manual',
-    status: ['new', 'learning', 'familiar', 'mastered'].includes(payload.status) ? payload.status : 'new'
+    reviewStatus,
+    status: reviewStatus
   };
 }
 
@@ -705,7 +715,11 @@ function applyVocabularyReview(item, result) {
 }
 
 function applyMistakeReview(item, result) {
-  return applyVocabularyReview(item, result);
+  const reviewed = applyVocabularyReview(item, result);
+  return {
+    ...reviewed,
+    reviewStatus: reviewed.status
+  };
 }
 
 function todayTopic() {
@@ -1713,8 +1727,8 @@ async function handleApi(req, res) {
 
   if (req.method === 'POST' && url.pathname === '/api/mistakes') {
     const payload = normalizeMistakePayload(JSON.parse(await readBody(req) || '{}'));
-    if (!payload.originalSentence || !payload.improvedSentence) {
-      sendJson(res, 400, { error: 'Original sentence and improved sentence are required.' });
+    if (!payload.originalSentence || !payload.correctedSentence) {
+      sendJson(res, 400, { error: 'Original sentence and corrected sentence are required.' });
       return;
     }
     const now = new Date().toISOString();

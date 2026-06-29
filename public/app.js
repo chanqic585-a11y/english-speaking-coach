@@ -52,6 +52,14 @@ const elements = {
   vocabCount: document.querySelector('#vocabCount'),
   reviewList: document.querySelector('#reviewList'),
   wordBank: document.querySelector('#wordBank'),
+  mistakeForm: document.querySelector('#mistakeForm'),
+  mistakeOriginal: document.querySelector('#mistakeOriginal'),
+  mistakeImproved: document.querySelector('#mistakeImproved'),
+  mistakeType: document.querySelector('#mistakeType'),
+  mistakeNote: document.querySelector('#mistakeNote'),
+  mistakeCount: document.querySelector('#mistakeCount'),
+  mistakeReviewList: document.querySelector('#mistakeReviewList'),
+  mistakeBank: document.querySelector('#mistakeBank'),
   recordButton: document.querySelector('#recordButton'),
   recordingStatus: document.querySelector('#recordingStatus'),
   recordingPlayback: document.querySelector('#recordingPlayback'),
@@ -164,7 +172,17 @@ function buildFeedbackDetails(feedback) {
   }
 
   const grammar = Array.isArray(feedback.grammarFixes) && feedback.grammarFixes.length
-    ? `<ul>${feedback.grammarFixes.map(item => `<li><strong>${escapeHtml(item.improved || '')}</strong><br><span>${escapeHtml(item.explanation || item.original || '')}</span></li>`).join('')}</ul>`
+    ? `<ul>${feedback.grammarFixes.map(item => `
+      <li>
+        <strong>${escapeHtml(item.improved || '')}</strong><br>
+        <span>${escapeHtml(item.explanation || item.original || '')}</span><br>
+        <button type="button" class="secondary-button compact-button save-mistake-button"
+          data-original="${escapeHtml(item.original || '')}"
+          data-improved="${escapeHtml(item.improved || '')}"
+          data-type="grammar"
+          data-note="${escapeHtml(item.explanation || '')}">Save mistake</button>
+      </li>
+    `).join('')}</ul>`
     : '<p>No major grammar fixes.</p>';
 
   const logic = Array.isArray(feedback.logicCoherence) && feedback.logicCoherence.length
@@ -487,6 +505,102 @@ async function reviewVocabulary(event) {
   await loadVocabulary();
 }
 
+function renderMistakes(items, reviewItems) {
+  elements.mistakeCount.textContent = `${items.length} saved`;
+
+  if (!reviewItems.length) {
+    elements.mistakeReviewList.innerHTML = '<p class="muted">No mistake sentences due today. Save one from AI feedback or add one manually.</p>';
+  } else {
+    elements.mistakeReviewList.innerHTML = reviewItems.map(item => `
+      <article class="review-card mistake-review-card">
+        <div>
+          <strong>${escapeHtml(item.originalSentence)}</strong>
+          <p>${escapeHtml(item.improvedSentence)}</p>
+          <small>${escapeHtml(item.errorType || 'grammar')} - next: ${escapeHtml(item.nextReviewAt || 'today')}</small>
+        </div>
+        <div class="review-actions">
+          <button type="button" class="secondary-button" data-mistake-review="${escapeHtml(item.id)}" data-result="again">Again</button>
+          <button type="button" class="secondary-button" data-mistake-review="${escapeHtml(item.id)}" data-result="good">Good</button>
+          <button type="button" class="primary-button" data-mistake-review="${escapeHtml(item.id)}" data-result="mastered">Mastered</button>
+        </div>
+      </article>
+    `).join('');
+  }
+
+  if (!items.length) {
+    elements.mistakeBank.innerHTML = '<p class="muted">Your mistake book is empty.</p>';
+    return;
+  }
+
+  elements.mistakeBank.innerHTML = items.slice(0, 12).map(item => `
+    <article class="mistake-item">
+      <div>
+        <span class="label">Original</span>
+        <p>${escapeHtml(item.originalSentence)}</p>
+      </div>
+      <div>
+        <span class="label">Improved</span>
+        <p>${escapeHtml(item.improvedSentence)}</p>
+      </div>
+      <div class="mistake-meta">
+        <span class="word-status">${statusLabel(item.status)}</span>
+        <small>${escapeHtml(item.errorType || 'grammar')} - next: ${escapeHtml(item.nextReviewAt || 'today')}</small>
+      </div>
+    </article>
+  `).join('');
+}
+
+async function loadMistakes() {
+  const [all, review] = await Promise.all([api('/api/mistakes'), api('/api/mistakes/review')]);
+  renderMistakes(all.items || [], review.items || []);
+}
+
+async function addMistake(payload) {
+  await api('/api/mistakes', { method: 'POST', body: JSON.stringify(payload) });
+  await loadMistakes();
+}
+
+async function addMistakeFromForm(event) {
+  event.preventDefault();
+  const payload = {
+    originalSentence: elements.mistakeOriginal.value.trim(),
+    improvedSentence: elements.mistakeImproved.value.trim(),
+    errorType: elements.mistakeType.value.trim(),
+    note: elements.mistakeNote.value.trim(),
+    source: 'manual'
+  };
+  if (!payload.originalSentence || !payload.improvedSentence) {
+    elements.mistakeCount.textContent = 'Original and improved required';
+    return;
+  }
+  await addMistake(payload);
+  elements.mistakeForm.reset();
+}
+
+async function saveMistakeFromButton(button) {
+  const payload = {
+    originalSentence: button.dataset.original || '',
+    improvedSentence: button.dataset.improved || '',
+    errorType: button.dataset.type || 'grammar',
+    note: button.dataset.note || '',
+    source: 'AI feedback'
+  };
+  if (!payload.originalSentence || !payload.improvedSentence) return;
+  button.disabled = true;
+  button.textContent = 'Saved';
+  await addMistake(payload);
+}
+
+async function reviewMistake(event) {
+  const button = event.target.closest('[data-mistake-review]');
+  if (!button) return;
+  await api(`/api/mistakes/${button.dataset.mistakeReview}/review`, {
+    method: 'POST',
+    body: JSON.stringify({ result: button.dataset.result })
+  });
+  await loadMistakes();
+}
+
 function getSpeechRecognition() {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;
 }
@@ -668,6 +782,7 @@ async function loadInitialData() {
   renderTopic(topic);
   await renderNetworkInfo();
   await loadVocabulary();
+  await loadMistakes();
   await loadHistory();
 }
 
@@ -1129,6 +1244,16 @@ elements.feedbackModalContent.addEventListener('click', event => {
   if (event.target?.id === 'sendFeedbackFollowup') {
     sendFeedbackFollowupAnswer();
   }
+  const saveButton = event.target?.closest?.('.save-mistake-button');
+  if (saveButton) {
+    saveMistakeFromButton(saveButton).catch(renderFeedbackError);
+  }
+});
+elements.feedbackContent.addEventListener('click', event => {
+  const saveButton = event.target?.closest?.('.save-mistake-button');
+  if (saveButton) {
+    saveMistakeFromButton(saveButton).catch(renderFeedbackError);
+  }
 });
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && !elements.feedbackModal.hidden) {
@@ -1158,6 +1283,9 @@ document.querySelector('#refreshHistory').addEventListener('click', loadHistory)
 document.querySelector('#refreshVocabulary').addEventListener('click', loadVocabulary);
 elements.vocabForm.addEventListener('submit', addVocabulary);
 elements.reviewList.addEventListener('click', reviewVocabulary);
+document.querySelector('#refreshMistakes').addEventListener('click', loadMistakes);
+elements.mistakeForm.addEventListener('submit', addMistakeFromForm);
+elements.mistakeReviewList.addEventListener('click', reviewMistake);
 elements.recordButton.addEventListener('pointerdown', startHoldToSpeak);
 elements.recordButton.addEventListener('pointerup', endHoldToSpeak);
 elements.recordButton.addEventListener('pointercancel', endHoldToSpeak);

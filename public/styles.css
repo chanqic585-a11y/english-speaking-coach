@@ -27,7 +27,7 @@ button { cursor: pointer; }
 .phone-access { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); }
 .phone-access p { margin: 4px 0 0; color: #334155; overflow-wrap: anywhere; line-height: 1.4; }
 .dashboard { display: grid; grid-template-columns: 240px minmax(360px, 1fr) minmax(360px, 1fr); gap: 16px; align-items: stretch; }
-.rail, .panel, .history-section, .vocabulary-section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+.rail, .panel, .history-section, .vocabulary-section, .mistake-section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
 .rail { padding: 16px; }
 .today-card { padding: 14px; background: var(--accent-soft); border-radius: 8px; margin-bottom: 16px; }
 .today-card h2 { margin: 6px 0 4px; font-size: 18px; letter-spacing: 0; }
@@ -146,19 +146,22 @@ textarea:focus, input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px
 .chat-input-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: end; border-top: 1px solid var(--line); padding-top: 12px; }
 .chat-input-row textarea { min-height: 72px; max-height: 160px; }
 .reflection-box { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 10px; }
-.vocabulary-section { margin-top: 16px; padding: 18px; }
-.vocabulary-grid { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 16px; }
-.vocab-form { display: grid; gap: 10px; align-self: start; }
+.vocabulary-section, .mistake-section { margin-top: 16px; padding: 18px; }
+.vocabulary-grid, .mistake-grid { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 16px; }
+.vocab-form, .mistake-form { display: grid; gap: 10px; align-self: start; }
 .review-box { min-width: 0; }
-.review-list, .word-bank { display: grid; gap: 10px; }
+.review-list, .word-bank, .mistake-bank { display: grid; gap: 10px; }
 .word-bank { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.review-card, .word-item { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--panel-soft); }
+.mistake-bank { grid-column: 1 / -1; }
+.review-card, .word-item, .mistake-item { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--panel-soft); }
 .review-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
 .review-card strong, .word-item strong { display: block; margin-bottom: 4px; }
-.review-card p, .word-item p { margin: 0; color: #334155; line-height: 1.4; }
-.review-card small, .word-item small { display: block; margin-top: 6px; color: var(--muted); line-height: 1.4; }
+.review-card p, .word-item p, .mistake-item p { margin: 0; color: #334155; line-height: 1.4; overflow-wrap: anywhere; }
+.review-card small, .word-item small, .mistake-item small { display: block; margin-top: 6px; color: var(--muted); line-height: 1.4; }
 .review-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .word-item { display: flex; justify-content: space-between; gap: 12px; }
+.mistake-item { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+.mistake-meta { display: grid; justify-items: end; gap: 6px; min-width: 120px; }
 .word-status { display: inline-flex; justify-content: center; min-width: 78px; border: 1px solid #c7d2fe; border-radius: 999px; padding: 5px 8px; color: #3730a3; background: #eef2ff; font-size: 12px; font-weight: 800; }
 .history-section { margin-top: 16px; padding: 18px; }
 .history-list { display: grid; gap: 10px; }
@@ -166,4 +169,4 @@ textarea:focus, input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px
 .history-item strong { display: block; margin-bottom: 4px; }
 .history-item p { margin: 0; color: var(--muted); line-height: 1.4; }
 @media (max-width: 1120px) { .dashboard { grid-template-columns: 1fr; } .panel { min-height: auto; } .rail { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .today-card { margin: 0; } }
-@media (max-width: 720px) { .app-shell { width: min(100% - 20px, 1440px); padding-top: 12px; } .topbar, .phone-access { align-items: flex-start; flex-direction: column; } .topbar-actions { justify-content: flex-start; width: 100%; } .rail, .vocabulary-grid, .word-bank { grid-template-columns: 1fr; } .review-card, .history-item { grid-template-columns: 1fr; } .review-actions { justify-content: flex-start; } .feedback-modal, .chat-modal { padding: 10px; align-items: end; } .modal-panel, .chat-panel { width: 100%; max-height: 92vh; padding: 14px; } .chat-panel { height: 92vh; } .modal-header { align-items: flex-start; } .modal-header h2 { font-size: 21px; } .modal-summary { grid-template-columns: 1fr 1fr; } .summary-card.wide { grid-column: 1 / -1; } .chat-message { max-width: 94%; } .chat-input-row { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .app-shell { width: min(100% - 20px, 1440px); padding-top: 12px; } .topbar, .phone-access { align-items: flex-start; flex-direction: column; } .topbar-actions { justify-content: flex-start; width: 100%; } .rail, .vocabulary-grid, .word-bank, .mistake-grid, .mistake-item { grid-template-columns: 1fr; } .review-card, .history-item { grid-template-columns: 1fr; } .review-actions { justify-content: flex-start; } .mistake-meta { justify-items: start; } .feedback-modal, .chat-modal { padding: 10px; align-items: end; } .modal-panel, .chat-panel { width: 100%; max-height: 92vh; padding: 14px; } .chat-panel { height: 92vh; } .modal-header { align-items: flex-start; } .modal-header h2 { font-size: 21px; } .modal-summary { grid-template-columns: 1fr 1fr; } .summary-card.wide { grid-column: 1 / -1; } .chat-message { max-width: 94%; } .chat-input-row { grid-template-columns: 1fr; } }

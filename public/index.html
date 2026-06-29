@@ -188,6 +188,30 @@
       </div>
     </section>
 
+    <section class="mistake-section" aria-label="Mistake book practice">
+      <div class="panel-header">
+        <span class="label">Mistake Book</span>
+        <span class="muted" id="mistakeCount">Loading mistakes</span>
+      </div>
+      <div class="mistake-grid">
+        <form class="mistake-form" id="mistakeForm">
+          <textarea id="mistakeOriginal" rows="3" placeholder="Original sentence"></textarea>
+          <textarea id="mistakeImproved" rows="3" placeholder="Improved sentence"></textarea>
+          <input id="mistakeType" placeholder="Error type, e.g. grammar / logic / natural expression">
+          <input id="mistakeNote" placeholder="Short note">
+          <button type="submit" class="primary-button">Add mistake</button>
+        </form>
+        <div class="review-box">
+          <div class="panel-header compact">
+            <span class="label">Mistakes due today</span>
+            <button type="button" class="secondary-button" id="refreshMistakes">Refresh</button>
+          </div>
+          <div class="review-list" id="mistakeReviewList"></div>
+        </div>
+        <div class="mistake-bank" id="mistakeBank"></div>
+      </div>
+    </section>
+
     <section class="history-section" aria-label="Saved sessions">
       <div class="panel-header">
         <span class="label">Recent sessions</span>

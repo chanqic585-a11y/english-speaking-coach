@@ -133,11 +133,22 @@ Use the `Vocabulary` section to save words and phrases from your speaking practi
 
 Vocabulary is saved locally in `data/vocabulary.json`. The review schedule is intentionally simple: difficult words come back soon, useful words return after a few days, and mastered words return later.
 
+## Mistake Book
+
+Use the `Mistake Book` section to save sentences you often say incorrectly.
+
+- Save grammar fixes directly from AI feedback with `Save mistake`.
+- Add your own original sentence and improved sentence manually.
+- Label the error type, such as grammar, logic, natural expression, pronunciation, or fluency.
+- Review due mistakes with `Again`, `Good`, or `Mastered`.
+
+Mistakes are saved locally in `data/mistakes.json` with the original sentence, improved sentence, error type, note, review count, status, and next review date.
+
 ## Files
 
 - `server.js` - local Node backend and static file server.
 - `public/` - frontend UI.
-- `data/` - local saved sessions, excluded from git except `.gitkeep`.
+- `data/` - local saved sessions, vocabulary, mistakes, and recordings, excluded from git except `.gitkeep`.
 - `docs/` - design and implementation planning documents.
 
 ## Privacy

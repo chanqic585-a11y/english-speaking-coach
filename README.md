@@ -1,6 +1,6 @@
-﻿# English Speaking Coach
+# English Speaking Coach for Chinese Engineers
 
-A local English speaking coach for self-paced practice. It uses a Workspace Dashboard layout: scenario role practice in the center, AI feedback on the right, and an AI daily chat window for open-ended conversation practice.
+A local English speaking coach for Chinese engineers who need practical speaking practice for daily life, workplace communication, customer meetings, and mechanical engineering scenarios. It uses a Workspace Dashboard layout: scenario role practice in the center, AI feedback on the right, and an AI daily chat window for open-ended conversation practice.
 
 ## Run
 
@@ -93,11 +93,19 @@ Without audio, the app still gives a text-only estimate for fluency, pause probl
 
 Recording uses the browser MediaRecorder API. Live transcription uses browser SpeechRecognition when available, so support varies by browser. The public HTTPS tunnel generally works better for microphone and speech recognition permissions than plain local network links on some phones.
 
+## Scenario library
+
+The scenario library is organized by CEFR level and communication category.
+
+- Levels: `A2`, `B1`, `B2`, `C1`
+- Categories: `Interview`, `Travel`, `Workplace`, `Mexico daily life`, `Mechanical engineer English`, `Customer communication`
+
+Use the `Level` and `Category` filters next to `New scenario` to practice a specific difficulty or professional context. Mechanical engineering scenarios cover machine troubleshooting, drawing dimensions, tolerance discussions, root cause analysis, preventive maintenance, supplier quality, design reviews, and engineering change communication.
 ## Role scenario conversation
 
 Use `Scenario conversation` inside the practice panel when you want a complete role-play scene.
 
-1. Pick a role scenario with `New topic`, such as interviewer, hotel front desk, airport staff, foreign coworker, client, or gym friend.
+1. Pick a role scenario with `New scenario`, such as interviewer, hotel front desk, airport staff, foreign coworker, client, or engineering manager.
 2. Read the situation, task, useful phrases, and AI opening line.
 3. Answer the opening in the main answer box.
 4. Click `Start scene`.

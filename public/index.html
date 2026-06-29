@@ -11,7 +11,8 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Daily speaking workspace</p>
-        <h1>English Speaking Coach</h1>
+        <h1>English Speaking Coach for Chinese Engineers</h1>
+        <p class="topbar-subtitle">Practice daily, workplace, customer, and mechanical engineering English.</p>
       </div>
       <div class="topbar-actions">
         <button type="button" class="primary-button" id="openChat">AI Daily Chat</button>
@@ -47,6 +48,30 @@
         <div class="panel-header">
           <span class="label">Practice</span>
           <button type="button" class="secondary-button" id="loadTopic">New scenario</button>
+        </div>
+        <div class="scenario-filters" aria-label="Scenario filters">
+          <label>
+            <span class="label">Level</span>
+            <select id="levelFilter">
+              <option value="">Any</option>
+              <option value="A2">A2</option>
+              <option value="B1">B1</option>
+              <option value="B2">B2</option>
+              <option value="C1">C1</option>
+            </select>
+          </label>
+          <label>
+            <span class="label">Category</span>
+            <select id="categoryFilter">
+              <option value="">Any</option>
+              <option value="Interview">Interview</option>
+              <option value="Travel">Travel</option>
+              <option value="Workplace">Workplace</option>
+              <option value="Mexico daily life">Mexico daily life</option>
+              <option value="Mechanical engineer English">Mechanical engineer English</option>
+              <option value="Customer communication">Customer communication</option>
+            </select>
+          </label>
         </div>
         <div class="prompt-block">
           <h2 id="promptText">Loading today's prompt...</h2>

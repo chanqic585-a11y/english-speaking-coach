@@ -35,6 +35,8 @@ const elements = {
   promptText: document.querySelector('#promptText'),
   sentenceFrame: document.querySelector('#sentenceFrame'),
   phraseBank: document.querySelector('#phraseBank'),
+  levelFilter: document.querySelector('#levelFilter'),
+  categoryFilter: document.querySelector('#categoryFilter'),
   answerInput: document.querySelector('#answerInput'),
   feedbackContent: document.querySelector('#feedbackContent'),
   feedbackState: document.querySelector('#feedbackState'),
@@ -111,11 +113,13 @@ async function api(path, options = {}) {
 
 function renderTopic(topic) {
   state.topic = topic;
-  elements.todayFocus.textContent = topic.focus;
+  elements.todayFocus.textContent = topic.level && topic.category
+    ? `${topic.level} - ${topic.category}`
+    : topic.focus;
   elements.todayTopic.textContent = topic.role ? `${topic.role} - ${topic.topic}` : topic.topic;
   elements.promptText.textContent = topic.role ? `${topic.role}: ${topic.situation}` : topic.prompt;
   elements.sentenceFrame.textContent = topic.userTask
-    ? `Your task: ${topic.userTask} Opening: ${topic.openingLine}`
+    ? `Focus: ${topic.focus}. Your task: ${topic.userTask} Opening: ${topic.openingLine}`
     : topic.sentenceFrame;
   elements.phraseBank.innerHTML = '';
   for (const phrase of topic.phraseBank || []) {
@@ -1304,7 +1308,9 @@ document.querySelector('#clearAnswer').addEventListener('click', () => {
 });
 document.querySelector('#loadTopic').addEventListener('click', async () => {
   const exclude = encodeURIComponent(state.topic?.prompt || '');
-  renderTopic(await api(`/api/today?random=1&exclude=${exclude}`));
+  const level = encodeURIComponent(elements.levelFilter.value || '');
+  const category = encodeURIComponent(elements.categoryFilter.value || '');
+  renderTopic(await api(`/api/today?random=1&exclude=${exclude}&level=${level}&category=${category}`));
 });
 
 loadInitialData().catch(error => {

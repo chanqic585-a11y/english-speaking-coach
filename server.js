@@ -713,9 +713,18 @@ function todayTopic() {
   return scenarios[day % scenarios.length];
 }
 
-function randomTopic(excludePrompt = '') {
-  const candidates = scenarios.filter(topic => topic.prompt !== excludePrompt);
-  const pool = candidates.length ? candidates : scenarios;
+function randomTopic(options = {}) {
+  const excludePrompt = String(options.excludePrompt || '');
+  const level = String(options.level || '').trim();
+  const category = String(options.category || '').trim();
+  const filtered = scenarios.filter(topic => {
+    if (excludePrompt && topic.prompt === excludePrompt) return false;
+    if (level && topic.level !== level) return false;
+    if (category && topic.category !== category) return false;
+    return true;
+  });
+  const fallback = scenarios.filter(topic => !excludePrompt || topic.prompt !== excludePrompt);
+  const pool = filtered.length ? filtered : (fallback.length ? fallback : scenarios);
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -1487,7 +1496,11 @@ async function handleApi(req, res) {
 
   if (req.method === 'GET' && url.pathname === '/api/today') {
     const topic = url.searchParams.get('random') === '1'
-      ? randomTopic(url.searchParams.get('exclude') || '')
+      ? randomTopic({
+        excludePrompt: url.searchParams.get('exclude') || '',
+        level: url.searchParams.get('level') || '',
+        category: url.searchParams.get('category') || ''
+      })
       : todayTopic();
     sendJson(res, 200, topic);
     return;

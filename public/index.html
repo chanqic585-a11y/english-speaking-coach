@@ -31,7 +31,7 @@
       </nav>
       <section class="sidebar-card" aria-label="API status">
         <span class="label">Status</span>
-        <div class="status-pill" id="apiStatus">Checking API key</div>
+        <div class="status-pill">Use Today Practice first</div>
       </section>
       <section class="sidebar-card phone-access" aria-label="Phone access">
         <div>
@@ -47,74 +47,63 @@
       <header class="topbar">
         <div>
           <p class="eyebrow">Daily speaking workflow</p>
-          <h2 id="pageTitle">Today Practice</h2>
-          <p class="topbar-subtitle" id="pageSubtitle">Record, improve, repeat, and save what matters.</p>
+          <h2 id="pageTitle">English Speaking Coach</h2>
+          <p class="topbar-subtitle" id="pageSubtitle">One clear loop: speak, review, repeat.</p>
         </div>
-        <div class="topbar-actions">
-          <button type="button" class="secondary-button" data-page-link="rolePlay">Role Play</button>
-          <button type="button" class="primary-button" id="openChat">AI Chat</button>
+        <div class="topbar-meta" aria-label="Practice status">
+          <div class="topbar-pill">
+            <span>Today</span>
+            <strong>20-25 min</strong>
+          </div>
+          <div class="status-pill" id="apiStatus">Checking API key</div>
         </div>
       </header>
 
-      <section class="page-view active" id="todayPractice" data-title="Today Practice" data-subtitle="Record, improve, repeat, and save what matters.">
-        <section class="hero-card">
-          <div>
-            <span class="label">Today's goal</span>
-            <h2 id="todayFocus">Loading...</h2>
-            <p id="todayTopic">Preparing your session</p>
-          </div>
-          <ol class="flow-steps" aria-label="Today practice flow">
-            <li><span>1</span> Record or type</li>
-            <li><span>2</span> Get AI feedback</li>
-            <li><span>3</span> Repeat script</li>
-            <li><span>4</span> Save mistakes</li>
-          </ol>
-        </section>
-
-        <div class="two-column">
-          <section class="panel practice-panel" aria-label="Today practice workspace">
-            <div class="panel-header">
+      <section class="page-view active today-page" id="todayPractice" data-title="English Speaking Coach" data-subtitle="One clear loop: speak, review, repeat.">
+        <div class="today-practice-layout">
+          <section class="mission-card" aria-label="Today's speaking mission">
+            <div class="mission-header">
               <div>
-                <span class="label">Step 1</span>
-                <h3>Record your answer</h3>
+                <span class="label">Today's Speaking Mission</span>
+                <h2 id="todayFocus">Loading...</h2>
+                <p id="todayTopic">Preparing your session</p>
               </div>
               <button type="button" class="secondary-button compact-button" id="loadTopic">New scenario</button>
             </div>
 
-            <div class="prompt-block">
+            <div class="mission-prompt">
+              <span class="mission-tag">Scene / Question</span>
               <h2 id="promptText">Loading today's prompt...</h2>
               <p class="sentence-frame" id="sentenceFrame"></p>
             </div>
+
+            <span class="mission-tag">Useful expressions</span>
             <div class="phrase-bank" id="phraseBank" aria-label="Phrase bank"></div>
 
-            <div class="voice-lab" aria-label="Built-in speaking practice">
-              <div>
-                <span class="label">Speaking recorder</span>
-                <p id="recordingStatus">Tap to record, or press and hold while speaking. Review the transcript before feedback.</p>
-              </div>
+            <div class="transcript-card" aria-label="Record and transcript">
+              <label class="field-label" for="answerInput">Transcript</label>
+              <p id="recordingStatus">Tap Record, speak naturally, then edit the transcript before feedback.</p>
               <div class="recording-actions">
                 <button type="button" class="record-button" id="recordButton">
-                  <span>Tap to Record</span>
+                  <span>Record</span>
                   <small>Hold to Speak</small>
                 </button>
               </div>
               <audio id="recordingPlayback" controls hidden></audio>
+              <textarea id="answerInput" rows="9" placeholder="Your spoken transcript will appear here. You can also type your answer directly..."></textarea>
             </div>
 
-            <label class="field-label" for="answerInput">Your spoken answer or transcript</label>
-            <textarea id="answerInput" rows="10" placeholder="Record your answer, then edit the transcript here before AI feedback..."></textarea>
-
-            <div class="practice-actions next-actions">
-              <button type="button" class="primary-button" id="requestFeedback">Submit feedback</button>
+            <div class="practice-actions next-actions mission-actions">
+              <button type="button" class="primary-button" id="requestFeedback">Get Feedback</button>
               <button type="button" class="secondary-button" id="clearAnswer">Clear</button>
             </div>
           </section>
 
-          <section class="panel feedback-panel" aria-label="AI feedback workspace">
+          <section class="feedback-preview-card" aria-label="AI feedback preview">
             <div class="panel-header">
               <div>
-                <span class="label">Step 2-4</span>
-                <h3>Feedback and repeat</h3>
+                <span class="label">AI Feedback Preview</span>
+                <h3>Improve the next sentence you say</h3>
               </div>
               <div class="feedback-header-actions">
                 <span class="muted" id="feedbackState">Waiting for your answer</span>
@@ -124,13 +113,13 @@
 
             <div class="feedback-content" id="feedbackContent">
               <div class="empty-state">
-                <h2>Upgrade your answer</h2>
-                <p>After you submit, this panel will show grammar fixes, logic notes, a natural version, and a repeat script.</p>
+                <h2>Your feedback will appear here</h2>
+                <p>Get pronunciation, fluency, a natural version, and a repeat script after you submit.</p>
               </div>
             </div>
 
             <div class="reflection-box">
-              <span class="label">Save what you learned</span>
+              <span class="label">Save one useful takeaway</span>
               <input id="grammarNote" placeholder="One grammar point to remember">
               <input id="logicNote" placeholder="One logic point to remember">
               <input id="expressionNote" placeholder="One reusable expression">

@@ -331,6 +331,33 @@ function renderFeedbackSummary(feedback) {
   ].join('');
 }
 
+function renderFeedbackPreview(feedback) {
+  if (feedback.rawText || feedback.rawResponse) {
+    return '<div class="empty-state"><h2>Feedback received</h2><p>Gemini returned text that needs the full feedback view.</p></div>';
+  }
+
+  return `
+    <div class="feedback-preview-grid">
+      <article class="preview-score-card">
+        <span>Pronunciation score</span>
+        <strong>${scoreValue(feedback.pronunciationScore)}</strong>
+      </article>
+      <article class="preview-score-card">
+        <span>Fluency score</span>
+        <strong>${scoreValue(feedback.fluencyScore)}</strong>
+      </article>
+    </div>
+    <article class="preview-text-card">
+      <span>Natural version</span>
+      <p>${escapeHtml(feedback.naturalVersion || 'No natural version returned yet.')}</p>
+    </article>
+    <article class="preview-text-card">
+      <span>Repeat script</span>
+      <p>${escapeHtml(feedback.repeatScript || feedback.naturalVersion || 'No repeat script returned yet.')}</p>
+    </article>
+  `;
+}
+
 function renderFeedbackFollowupPanel() {
   if (!state.feedback) return '';
   const turns = state.feedbackFollowupTurns.map((turn, index) => `
@@ -565,8 +592,7 @@ function renderFeedback(feedback) {
     ? 'AI feedback received for the saved recording.'
     : elements.recordingStatus.textContent;
 
-  const details = buildFeedbackDetails(feedback);
-  elements.feedbackContent.innerHTML = details;
+  elements.feedbackContent.innerHTML = renderFeedbackPreview(feedback);
   elements.feedbackModalTitle.textContent = 'Feedback is ready';
   elements.feedbackModalStatus.textContent = 'Start with the scores, record the repeat script, then answer the follow-up question.';
   elements.feedbackModalSummary.innerHTML = renderFeedbackSummary(feedback);
@@ -1593,7 +1619,7 @@ elements.pageButtons.forEach(button => {
 elements.pageLinks.forEach(button => {
   button.addEventListener('click', () => showPage(button.dataset.pageLink));
 });
-elements.openChat.addEventListener('click', openChat);
+elements.openChat?.addEventListener('click', openChat);
 elements.closeChat.addEventListener('click', closeChat);
 elements.chatModalBackdrop?.addEventListener('click', closeChat);
 elements.sendChat.addEventListener('click', sendChatMessage);

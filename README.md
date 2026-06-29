@@ -123,7 +123,7 @@ Use the `Speaking recorder` inside `Today Practice`:
 2. Speak your answer.
 3. Tap again or release to stop.
 4. Review or edit the transcript in the answer box.
-5. Click `Submit feedback`.
+5. Click `Get Feedback`.
 
 The app saves the audio locally under `data/recordings/` and places the transcript into the answer box when browser speech recognition is available. Feedback is not submitted automatically after recording, so you can correct the transcript before Gemini reviews it.
 

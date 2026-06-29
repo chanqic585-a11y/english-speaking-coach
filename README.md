@@ -1,6 +1,13 @@
 # English Speaking Coach for Chinese Engineers
 
-A local English speaking coach for Chinese engineers who need practical speaking practice for daily life, workplace communication, customer meetings, and mechanical engineering scenarios. It uses a Workspace Dashboard layout: scenario role practice in the center, AI feedback on the right, and an AI daily chat window for open-ended conversation practice.
+A local English speaking coach for Chinese engineers who need practical speaking practice for daily life, workplace communication, customer meetings, and mechanical engineering scenarios. The interface is organized around four learning pages: `Today Practice`, `Role Play`, `AI Chat`, and `Review`.
+
+## Product structure
+
+- `Today Practice` keeps the main daily loop: today's goal, recording or text input, AI feedback, repeat script shadowing, and saving useful mistakes or expressions.
+- `Role Play` keeps scenario conversation practice separate from the daily answer workflow.
+- `AI Chat` is for open-ended daily conversation with text or voice input and text or voice output.
+- `Review` contains vocabulary, mistake book, and recent sessions.
 
 ## Run
 
@@ -110,7 +117,7 @@ OPENAI_MODEL=gpt-4.1-mini
 
 ## Built-in speaking practice
 
-Use the `Speaking recorder` inside the practice panel:
+Use the `Speaking recorder` inside `Today Practice`:
 
 1. Tap `Tap to Record`, or press and hold `Hold to Speak`.
 2. Speak your answer.
@@ -154,14 +161,15 @@ The scenario library is organized by CEFR level and communication category.
 - Levels: `A2`, `B1`, `B2`, `C1`
 - Categories: `Interview`, `Travel`, `Workplace`, `Mexico daily life`, `Mechanical engineer English`, `Customer communication`
 
-Use the `Level` and `Category` filters next to `New scenario` to practice a specific difficulty or professional context. Mechanical engineering scenarios cover machine troubleshooting, drawing dimensions, tolerance discussions, root cause analysis, preventive maintenance, supplier quality, design reviews, and engineering change communication.
+Use the `Level` and `Category` filters in `Role Play`, then click `New scenario` to practice a specific difficulty or professional context. Mechanical engineering scenarios cover machine troubleshooting, drawing dimensions, tolerance discussions, root cause analysis, preventive maintenance, supplier quality, design reviews, and engineering change communication.
+
 ## Role scenario conversation
 
-Use `Scenario conversation` inside the practice panel when you want a complete role-play scene.
+Use `Role Play` when you want a complete role-play scene.
 
 1. Pick a role scenario with `New scenario`, such as interviewer, hotel front desk, airport staff, foreign coworker, client, or engineering manager.
 2. Read the situation, task, useful phrases, and AI opening line.
-3. Answer the opening in the main answer box.
+3. Answer the opening in `Your opening reply`.
 4. Click `Start scene`.
 5. Reply to the AI role turn by turn until the scene closes naturally.
 
@@ -169,13 +177,13 @@ Every role and learner turn is kept in the scene transcript. During the scene, t
 
 You can also click `Get scene feedback` after at least one learner reply if you want an early review, but you do not need to click AI feedback after every single turn.
 
-This is intentionally different from `AI Daily Chat`: role scenario conversation stays inside a specific real-life scene and has a beginning, middle, and closing. AI Daily Chat is open-ended daily conversation.
+This is intentionally different from `AI Chat`: role scenario conversation stays inside a specific real-life scene and has a beginning, middle, and closing. AI Chat is open-ended daily conversation.
 
 `Follow-up practice` is also different from role scenarios: it starts only after AI feedback and keeps asking about the same answer, similar to IELTS Part 3 questions.
 
 ## AI daily chat
 
-Click `AI Daily Chat` to open a self-paced conversation window.
+Open `AI Chat` from the side navigation, bottom navigation, or top button to start a self-paced conversation page.
 
 - Use `Text input` to type English.
 - Use `Voice input` to speak and let the browser turn your speech into text.
@@ -186,7 +194,7 @@ The AI coach chats naturally, gives light corrections, suggests a better way to 
 
 ## Vocabulary practice
 
-Use the `Vocabulary` section to save words and phrases from your speaking practice.
+Use `Review -> Vocabulary` to save words and phrases from your speaking practice.
 
 - Add the English word or phrase.
 - Add the Chinese meaning.
@@ -197,7 +205,7 @@ Vocabulary is saved locally in `data/vocabulary.json`. The review schedule is in
 
 ## Mistake Book
 
-Use the `Mistake Book` section to save sentences you often say incorrectly.
+Use `Review -> Mistake Book` to save sentences you often say incorrectly.
 
 - Save grammar fixes directly from AI feedback with `Save mistake`.
 - Add your own original sentence and improved sentence manually.

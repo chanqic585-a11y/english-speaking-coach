@@ -39,9 +39,18 @@
 };
 
 const elements = {
+  pageTitle: document.querySelector('#pageTitle'),
+  pageSubtitle: document.querySelector('#pageSubtitle'),
+  pageViews: document.querySelectorAll('.page-view'),
+  pageButtons: document.querySelectorAll('[data-page]'),
+  pageLinks: document.querySelectorAll('[data-page-link]'),
   apiStatus: document.querySelector('#apiStatus'),
   todayFocus: document.querySelector('#todayFocus'),
   todayTopic: document.querySelector('#todayTopic'),
+  roleScenarioTitle: document.querySelector('#roleScenarioTitle'),
+  roleScenarioTask: document.querySelector('#roleScenarioTask'),
+  roleOpeningAnswer: document.querySelector('#roleOpeningAnswer'),
+  loadRoleTopic: document.querySelector('#loadRoleTopic'),
   promptText: document.querySelector('#promptText'),
   sentenceFrame: document.querySelector('#sentenceFrame'),
   phraseBank: document.querySelector('#phraseBank'),
@@ -124,6 +133,33 @@ async function api(path, options = {}) {
   return data;
 }
 
+function showPage(pageId) {
+  const target = document.querySelector(`#${pageId}`);
+  if (!target) return;
+
+  elements.pageViews.forEach(page => {
+    const isActive = page.id === pageId;
+    page.hidden = !isActive;
+    page.classList.toggle('active', isActive);
+  });
+
+  elements.pageButtons.forEach(button => {
+    button.classList.toggle('active', button.dataset.page === pageId);
+  });
+
+  elements.pageTitle.textContent = target.dataset.title || 'English Speaking Coach';
+  elements.pageSubtitle.textContent = target.dataset.subtitle || '';
+
+  if (elements.chatModal) {
+    elements.chatModal.hidden = pageId !== 'aiChat';
+  }
+
+  if (pageId === 'aiChat') {
+    loadChatMessages();
+    window.requestAnimationFrame(() => elements.chatPanel?.focus());
+  }
+}
+
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   window.addEventListener('load', () => {
@@ -165,6 +201,14 @@ function renderTopic(topic) {
     : topic.focus;
   elements.todayTopic.textContent = topic.role ? `${topic.role} - ${topic.topic}` : topic.topic;
   elements.promptText.textContent = topic.role ? `${topic.role}: ${topic.situation}` : topic.prompt;
+  if (elements.roleScenarioTitle) {
+    elements.roleScenarioTitle.textContent = topic.role ? `${topic.role} - ${topic.topic}` : topic.topic;
+  }
+  if (elements.roleScenarioTask) {
+    elements.roleScenarioTask.textContent = topic.userTask
+      ? `Your task: ${topic.userTask} Opening: ${topic.openingLine}`
+      : topic.prompt;
+  }
   elements.sentenceFrame.textContent = topic.userTask
     ? `Focus: ${topic.focus}. Your task: ${topic.userTask} Opening: ${topic.openingLine}`
     : topic.sentenceFrame;
@@ -1260,7 +1304,7 @@ function renderFollowupResult(followups) {
 }
 
 async function requestFollowups() {
-  const answer = elements.answerInput.value.trim();
+  const answer = elements.roleOpeningAnswer?.value.trim() || elements.answerInput.value.trim();
   if (answer.length < 10) {
     elements.followupStatus.textContent = 'Answer the scenario opening first, then start the role-play scene.';
     return;
@@ -1292,7 +1336,7 @@ async function requestFollowups() {
 }
 
 async function sendFollowupAnswer() {
-  const answer = elements.answerInput.value.trim();
+  const answer = elements.roleOpeningAnswer?.value.trim() || elements.answerInput.value.trim();
   const followupAnswer = elements.followupAnswer.value.trim();
   if (!state.currentAiLine) {
     elements.followupStatus.textContent = 'Start the scene first.';
@@ -1339,6 +1383,9 @@ function clearFollowups() {
   state.sceneFeedbackLoading = false;
   elements.followupQuestions.innerHTML = '';
   elements.followupCoaching.innerHTML = '';
+  if (elements.roleOpeningAnswer) {
+    elements.roleOpeningAnswer.value = '';
+  }
   elements.followupAnswer.value = '';
   elements.followupResponse.hidden = true;
   if (elements.requestSceneFeedback) {
@@ -1346,6 +1393,13 @@ function clearFollowups() {
     elements.requestSceneFeedback.textContent = 'Get scene feedback';
   }
   elements.followupStatus.textContent = 'Start a role-play scene, answer naturally, and let AI close the conversation.';
+}
+
+async function loadRandomTopic() {
+  const exclude = encodeURIComponent(state.topic?.prompt || '');
+  const level = encodeURIComponent(elements.levelFilter.value || '');
+  const category = encodeURIComponent(elements.categoryFilter.value || '');
+  renderTopic(await api(`/api/today?random=1&exclude=${exclude}&level=${level}&category=${category}`));
 }
 
 function chatInputMode() {
@@ -1384,15 +1438,11 @@ function renderChatMessages() {
 }
 
 function openChat() {
-  loadChatMessages();
-  elements.chatModal.hidden = false;
-  document.body.classList.add('modal-open');
-  window.requestAnimationFrame(() => elements.chatPanel.focus());
+  showPage('aiChat');
 }
 
 function closeChat() {
-  elements.chatModal.hidden = true;
-  document.body.classList.remove('modal-open');
+  showPage('todayPractice');
   window.speechSynthesis?.cancel();
   if (state.chatRecognition) {
     state.chatRecognition.stop();
@@ -1537,9 +1587,15 @@ document.addEventListener('keydown', event => {
     closeChat();
   }
 });
+elements.pageButtons.forEach(button => {
+  button.addEventListener('click', () => showPage(button.dataset.page));
+});
+elements.pageLinks.forEach(button => {
+  button.addEventListener('click', () => showPage(button.dataset.pageLink));
+});
 elements.openChat.addEventListener('click', openChat);
 elements.closeChat.addEventListener('click', closeChat);
-elements.chatModalBackdrop.addEventListener('click', closeChat);
+elements.chatModalBackdrop?.addEventListener('click', closeChat);
 elements.sendChat.addEventListener('click', sendChatMessage);
 elements.chatMic.addEventListener('click', startChatVoiceInput);
 elements.clearChat.addEventListener('click', clearChat);
@@ -1576,12 +1632,8 @@ document.querySelector('#clearAnswer').addEventListener('click', () => {
   setRecordingUi(false, 'Tap to record, or press and hold while speaking. Review the transcript before feedback.');
   clearFollowups();
 });
-document.querySelector('#loadTopic').addEventListener('click', async () => {
-  const exclude = encodeURIComponent(state.topic?.prompt || '');
-  const level = encodeURIComponent(elements.levelFilter.value || '');
-  const category = encodeURIComponent(elements.categoryFilter.value || '');
-  renderTopic(await api(`/api/today?random=1&exclude=${exclude}&level=${level}&category=${category}`));
-});
+document.querySelector('#loadTopic').addEventListener('click', () => loadRandomTopic());
+elements.loadRoleTopic?.addEventListener('click', () => loadRandomTopic());
 
 registerServiceWorker();
 setupInstallPrompt();

@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -15,144 +15,312 @@
 </head>
 <body>
   <main class="app-shell">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">Daily speaking workspace</p>
-        <h1>English Speaking Coach for Chinese Engineers</h1>
-        <p class="topbar-subtitle">Practice daily, workplace, customer, and mechanical engineering English.</p>
+    <aside class="app-sidebar" aria-label="Primary navigation">
+      <div class="brand-block">
+        <div class="brand-mark">EC</div>
+        <div>
+          <p class="eyebrow">Speaking Coach</p>
+          <h1>English for Chinese Engineers</h1>
+        </div>
       </div>
-      <div class="topbar-actions">
-        <button type="button" class="secondary-button install-button" id="installApp" hidden>Install app</button>
-        <button type="button" class="primary-button" id="openChat">AI Daily Chat</button>
+      <nav class="app-nav">
+        <button type="button" class="nav-item active" data-page="todayPractice">Today Practice</button>
+        <button type="button" class="nav-item" data-page="rolePlay">Role Play</button>
+        <button type="button" class="nav-item" data-page="aiChat">AI Chat</button>
+        <button type="button" class="nav-item" data-page="review">Review</button>
+      </nav>
+      <section class="sidebar-card" aria-label="API status">
+        <span class="label">Status</span>
         <div class="status-pill" id="apiStatus">Checking API key</div>
-      </div>
-    </header>
+      </section>
+      <section class="sidebar-card phone-access" aria-label="Phone access">
+        <div>
+          <span class="label">Phone access</span>
+          <p id="phoneUrl">Checking same Wi-Fi link...</p>
+        </div>
+        <button type="button" class="secondary-button compact-button" id="copyPhoneUrl">Copy</button>
+      </section>
+      <button type="button" class="secondary-button install-button" id="installApp" hidden>Install app</button>
+    </aside>
 
-    <section class="phone-access" aria-label="Phone access">
-      <div>
-        <span class="label">Phone access</span>
-        <p id="phoneUrl">Checking same Wi-Fi link...</p>
-      </div>
-      <button type="button" class="secondary-button" id="copyPhoneUrl">Copy</button>
-    </section>
+    <section class="app-main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Daily speaking workflow</p>
+          <h2 id="pageTitle">Today Practice</h2>
+          <p class="topbar-subtitle" id="pageSubtitle">Record, improve, repeat, and save what matters.</p>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" class="secondary-button" data-page-link="rolePlay">Role Play</button>
+          <button type="button" class="primary-button" id="openChat">AI Chat</button>
+        </div>
+      </header>
 
-    <section class="dashboard" aria-label="Daily practice dashboard">
-      <aside class="rail" aria-label="Training steps">
-        <div class="today-card">
-          <span class="label">Today</span>
-          <h2 id="todayFocus">Loading...</h2>
-          <p id="todayTopic">Preparing your session</p>
-        </div>
-        <ol class="steps" id="steps">
-          <li class="active"><span>1</span><div><strong>Role</strong><small>Choose a scenario</small></div></li>
-          <li><span>2</span><div><strong>Opening</strong><small>Reply to the role</small></div></li>
-          <li><span>3</span><div><strong>AI feedback</strong><small>Improve expression</small></div></li>
-          <li><span>4</span><div><strong>Scene turns</strong><small>Continue naturally</small></div></li>
-          <li><span>5</span><div><strong>Closing</strong><small>Finish the scene</small></div></li>
-        </ol>
-      </aside>
-
-      <section class="panel practice-panel" aria-label="Practice workspace">
-        <div class="panel-header">
-          <span class="label">Practice</span>
-          <button type="button" class="secondary-button" id="loadTopic">New scenario</button>
-        </div>
-        <div class="scenario-filters" aria-label="Scenario filters">
-          <label>
-            <span class="label">Level</span>
-            <select id="levelFilter">
-              <option value="">Any</option>
-              <option value="A2">A2</option>
-              <option value="B1">B1</option>
-              <option value="B2">B2</option>
-              <option value="C1">C1</option>
-            </select>
-          </label>
-          <label>
-            <span class="label">Category</span>
-            <select id="categoryFilter">
-              <option value="">Any</option>
-              <option value="Interview">Interview</option>
-              <option value="Travel">Travel</option>
-              <option value="Workplace">Workplace</option>
-              <option value="Mexico daily life">Mexico daily life</option>
-              <option value="Mechanical engineer English">Mechanical engineer English</option>
-              <option value="Customer communication">Customer communication</option>
-            </select>
-          </label>
-        </div>
-        <div class="prompt-block">
-          <h2 id="promptText">Loading today's prompt...</h2>
-          <p class="sentence-frame" id="sentenceFrame"></p>
-        </div>
-        <div class="phrase-bank" id="phraseBank" aria-label="Phrase bank"></div>
-        <div class="voice-lab" aria-label="Built-in speaking practice">
+      <section class="page-view active" id="todayPractice" data-title="Today Practice" data-subtitle="Record, improve, repeat, and save what matters.">
+        <section class="hero-card">
           <div>
-            <span class="label">Speaking practice</span>
-            <p id="recordingStatus">Tap to record, or press and hold while speaking. Review the transcript before feedback.</p>
+            <span class="label">Today's goal</span>
+            <h2 id="todayFocus">Loading...</h2>
+            <p id="todayTopic">Preparing your session</p>
           </div>
-          <div class="recording-actions">
-            <button type="button" class="record-button" id="recordButton">
-              <span>Tap to Record</span>
-              <small>Hold to Speak</small>
-            </button>
-          </div>
-          <audio id="recordingPlayback" controls hidden></audio>
-        </div>
-        <label class="field-label" for="answerInput">Your spoken answer or transcript</label>
-        <textarea id="answerInput" rows="12" placeholder="Tap to record, speak your answer, then stop. Edit the transcript here before submitting feedback..."></textarea>
-        <div class="practice-actions">
-          <button type="button" class="primary-button" id="requestFeedback">Submit feedback</button>
-          <button type="button" class="secondary-button" id="clearAnswer">Clear</button>
-        </div>
-        <div class="followup-box" aria-label="Scenario conversation mode">
-          <div class="panel-header compact">
-            <div>
-              <span class="label">Scenario conversation</span>
-              <p class="muted" id="followupStatus">Start a role-play scene, answer naturally, and let AI close the conversation.</p>
+          <ol class="flow-steps" aria-label="Today practice flow">
+            <li><span>1</span> Record or type</li>
+            <li><span>2</span> Get AI feedback</li>
+            <li><span>3</span> Repeat script</li>
+            <li><span>4</span> Save mistakes</li>
+          </ol>
+        </section>
+
+        <div class="two-column">
+          <section class="panel practice-panel" aria-label="Today practice workspace">
+            <div class="panel-header">
+              <div>
+                <span class="label">Step 1</span>
+                <h3>Record your answer</h3>
+              </div>
+              <button type="button" class="secondary-button compact-button" id="loadTopic">New scenario</button>
             </div>
-            <button type="button" class="secondary-button compact-button" id="requestFollowups">Start scene</button>
-          </div>
-          <div class="followup-questions" id="followupQuestions"></div>
-          <div class="followup-response" id="followupResponse" hidden>
-            <span class="label">Your scene reply</span>
-            <p class="muted" id="selectedFollowupQuestion"></p>
-            <textarea id="followupAnswer" rows="4" placeholder="Reply to the AI role in English..."></textarea>
-            <div class="practice-actions">
-              <button type="button" class="primary-button" id="sendFollowupAnswer">Send scene reply</button>
+
+            <div class="prompt-block">
+              <h2 id="promptText">Loading today's prompt...</h2>
+              <p class="sentence-frame" id="sentenceFrame"></p>
             </div>
-          </div>
-          <div class="practice-actions">
-            <button type="button" class="secondary-button" id="requestSceneFeedback" disabled>Get scene feedback</button>
-            <button type="button" class="secondary-button" id="clearFollowups">Reset scene</button>
-          </div>
-          <div class="followup-coaching" id="followupCoaching"></div>
+            <div class="phrase-bank" id="phraseBank" aria-label="Phrase bank"></div>
+
+            <div class="voice-lab" aria-label="Built-in speaking practice">
+              <div>
+                <span class="label">Speaking recorder</span>
+                <p id="recordingStatus">Tap to record, or press and hold while speaking. Review the transcript before feedback.</p>
+              </div>
+              <div class="recording-actions">
+                <button type="button" class="record-button" id="recordButton">
+                  <span>Tap to Record</span>
+                  <small>Hold to Speak</small>
+                </button>
+              </div>
+              <audio id="recordingPlayback" controls hidden></audio>
+            </div>
+
+            <label class="field-label" for="answerInput">Your spoken answer or transcript</label>
+            <textarea id="answerInput" rows="10" placeholder="Record your answer, then edit the transcript here before AI feedback..."></textarea>
+
+            <div class="practice-actions next-actions">
+              <button type="button" class="primary-button" id="requestFeedback">Submit feedback</button>
+              <button type="button" class="secondary-button" id="clearAnswer">Clear</button>
+            </div>
+          </section>
+
+          <section class="panel feedback-panel" aria-label="AI feedback workspace">
+            <div class="panel-header">
+              <div>
+                <span class="label">Step 2-4</span>
+                <h3>Feedback and repeat</h3>
+              </div>
+              <div class="feedback-header-actions">
+                <span class="muted" id="feedbackState">Waiting for your answer</span>
+                <button type="button" class="secondary-button compact-button" id="openFeedbackModal" disabled>Open latest</button>
+              </div>
+            </div>
+
+            <div class="feedback-content" id="feedbackContent">
+              <div class="empty-state">
+                <h2>Upgrade your answer</h2>
+                <p>After you submit, this panel will show grammar fixes, logic notes, a natural version, and a repeat script.</p>
+              </div>
+            </div>
+
+            <div class="reflection-box">
+              <span class="label">Save what you learned</span>
+              <input id="grammarNote" placeholder="One grammar point to remember">
+              <input id="logicNote" placeholder="One logic point to remember">
+              <input id="expressionNote" placeholder="One reusable expression">
+              <button type="button" class="secondary-button" id="saveSession">Save today's review</button>
+            </div>
+          </section>
         </div>
       </section>
 
-      <section class="panel feedback-panel" aria-label="AI feedback workspace">
-        <div class="panel-header">
-          <span class="label">AI feedback</span>
-          <div class="feedback-header-actions">
-            <span class="muted" id="feedbackState">Waiting for your answer</span>
-            <button type="button" class="secondary-button compact-button" id="openFeedbackModal" disabled>Open latest</button>
+      <section class="page-view" id="rolePlay" data-title="Role Play" data-subtitle="Choose a scenario, answer the role, and let AI continue the conversation." hidden>
+        <section class="panel role-panel" aria-label="Role scenario practice">
+          <div class="panel-header">
+            <div>
+              <span class="label">Scenario setup</span>
+              <h3>Pick your role-play context</h3>
+            </div>
+            <div class="panel-actions">
+              <button type="button" class="primary-button compact-button" id="loadRoleTopic">New scenario</button>
+              <button type="button" class="secondary-button compact-button" data-page-link="todayPractice">Back to today</button>
+            </div>
           </div>
-        </div>
-        <div class="feedback-content" id="feedbackContent">
-          <div class="empty-state">
-            <h2>Upgrade your answer</h2>
-            <p>After you submit, this panel will show grammar fixes, logic notes, a natural version, and a repeat script.</p>
+
+          <div class="scenario-filters" aria-label="Scenario filters">
+            <label>
+              <span class="label">Level</span>
+              <select id="levelFilter">
+                <option value="">Any</option>
+                <option value="A2">A2</option>
+                <option value="B1">B1</option>
+                <option value="B2">B2</option>
+                <option value="C1">C1</option>
+              </select>
+            </label>
+            <label>
+              <span class="label">Category</span>
+              <select id="categoryFilter">
+                <option value="">Any</option>
+                <option value="Interview">Interview</option>
+                <option value="Travel">Travel</option>
+                <option value="Workplace">Workplace</option>
+                <option value="Mexico daily life">Mexico daily life</option>
+                <option value="Mechanical engineer English">Mechanical engineer English</option>
+                <option value="Customer communication">Customer communication</option>
+              </select>
+            </label>
           </div>
-        </div>
-        <div class="reflection-box">
-          <span class="label">Reflection</span>
-          <input id="grammarNote" placeholder="One grammar point to remember">
-          <input id="logicNote" placeholder="One logic point to remember">
-          <input id="expressionNote" placeholder="One reusable expression">
-          <button type="button" class="primary-button" id="saveSession">Save today's review</button>
-        </div>
+
+          <div class="role-grid">
+            <div class="prompt-block">
+              <span class="label">Current scenario</span>
+              <h2 id="roleScenarioTitle">Loading today's role...</h2>
+              <p class="sentence-frame" id="roleScenarioTask"></p>
+            </div>
+            <div class="role-opening-card">
+              <span class="label">Your opening reply</span>
+              <textarea id="roleOpeningAnswer" rows="6" placeholder="Write your first reply to the role, or reuse today's transcript by leaving this blank."></textarea>
+              <div class="practice-actions">
+                <button type="button" class="primary-button" id="requestFollowups">Start scene</button>
+                <button type="button" class="secondary-button" id="clearFollowups">Reset scene</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="followup-box" aria-label="Scenario conversation mode">
+            <div class="panel-header compact">
+              <div>
+                <span class="label">Scenario conversation</span>
+                <p class="muted" id="followupStatus">Start a role-play scene, answer naturally, and let AI close the conversation.</p>
+              </div>
+            </div>
+            <div class="followup-questions" id="followupQuestions"></div>
+            <div class="followup-response" id="followupResponse" hidden>
+              <span class="label">Your scene reply</span>
+              <p class="muted" id="selectedFollowupQuestion"></p>
+              <textarea id="followupAnswer" rows="4" placeholder="Reply to the AI role in English..."></textarea>
+              <div class="practice-actions next-actions">
+                <button type="button" class="primary-button" id="sendFollowupAnswer">Send scene reply</button>
+              </div>
+            </div>
+            <div class="practice-actions">
+              <button type="button" class="secondary-button" id="requestSceneFeedback" disabled>Get scene feedback</button>
+            </div>
+            <div class="followup-coaching" id="followupCoaching"></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="page-view" id="aiChat" data-title="AI Chat" data-subtitle="Free conversation practice with text or voice input and optional voice output." hidden>
+        <section class="chat-page" id="chatModal" aria-label="AI daily chat" hidden>
+          <div class="chat-panel" tabindex="-1">
+            <div class="modal-header">
+              <div>
+                <span class="label">Daily AI chat</span>
+                <h2 id="chatModalTitle">Practice natural English</h2>
+                <p class="muted" id="chatStatus">Chat with your coach. Use text or voice input, then listen or read the reply.</p>
+              </div>
+              <button type="button" class="secondary-button compact-button" id="closeChat">Back to today</button>
+            </div>
+            <div class="chat-toolbar">
+              <label><input type="radio" name="chatInputMode" value="text" checked> Text input</label>
+              <label><input type="radio" name="chatInputMode" value="voice"> Voice input</label>
+              <label><input type="radio" name="chatOutputMode" value="text" checked> Text output</label>
+              <label><input type="radio" name="chatOutputMode" value="voice"> Voice output</label>
+              <button type="button" class="secondary-button compact-button" id="clearChat">Clear chat</button>
+            </div>
+            <div class="chat-messages" id="chatMessages" aria-live="polite"></div>
+            <div class="chat-input-row">
+              <button type="button" class="secondary-button" id="chatMic">Speak</button>
+              <textarea id="chatInput" rows="3" placeholder="Type in English, or switch to Voice input and speak..."></textarea>
+              <button type="button" class="primary-button" id="sendChat">Send</button>
+            </div>
+          </div>
+        </section>
+        <button type="button" id="chatModalBackdrop" hidden aria-hidden="true"></button>
+      </section>
+
+      <section class="page-view" id="review" data-title="Review" data-subtitle="Review vocabulary, mistake sentences, and recent sessions." hidden>
+        <section class="vocabulary-section" aria-label="Vocabulary practice">
+          <div class="panel-header">
+            <div>
+              <span class="label">Vocabulary</span>
+              <h3>Active words and phrases</h3>
+            </div>
+            <span class="muted" id="vocabCount">Loading words</span>
+          </div>
+          <div class="vocabulary-grid">
+            <form class="vocab-form" id="vocabForm">
+              <input id="vocabTerm" placeholder="Word or phrase">
+              <input id="vocabMeaning" placeholder="Chinese meaning">
+              <input id="vocabExample" placeholder="Speaking example sentence">
+              <input id="vocabTag" placeholder="Tag, e.g. Mexico / IELTS / daily">
+              <button type="submit" class="secondary-button">Add to vocabulary</button>
+            </form>
+            <div class="review-box">
+              <div class="panel-header compact">
+                <span class="label">Today's review</span>
+                <button type="button" class="secondary-button compact-button" id="refreshVocabulary">Refresh</button>
+              </div>
+              <div class="review-list" id="reviewList"></div>
+            </div>
+            <div class="word-bank" id="wordBank"></div>
+          </div>
+        </section>
+
+        <section class="mistake-section" aria-label="Mistake book practice">
+          <div class="panel-header">
+            <div>
+              <span class="label">Mistake Book</span>
+              <h3>Sentences to repair</h3>
+            </div>
+            <span class="muted" id="mistakeCount">Loading mistakes</span>
+          </div>
+          <div class="mistake-grid">
+            <form class="mistake-form" id="mistakeForm">
+              <textarea id="mistakeOriginal" rows="3" placeholder="Original sentence"></textarea>
+              <textarea id="mistakeImproved" rows="3" placeholder="Improved sentence"></textarea>
+              <input id="mistakeType" placeholder="Error type, e.g. grammar / logic / natural expression">
+              <input id="mistakeNote" placeholder="Short note">
+              <button type="submit" class="secondary-button">Add mistake</button>
+            </form>
+            <div class="review-box">
+              <div class="panel-header compact">
+                <span class="label">Mistakes due today</span>
+                <button type="button" class="secondary-button compact-button" id="refreshMistakes">Refresh</button>
+              </div>
+              <div class="review-list" id="mistakeReviewList"></div>
+            </div>
+            <div class="mistake-bank" id="mistakeBank"></div>
+          </div>
+        </section>
+
+        <section class="history-section" aria-label="Saved sessions">
+          <div class="panel-header">
+            <div>
+              <span class="label">Recent sessions</span>
+              <h3>Saved speaking work</h3>
+            </div>
+            <button type="button" class="secondary-button compact-button" id="refreshHistory">Refresh</button>
+          </div>
+          <div class="history-list" id="historyList"></div>
+        </section>
       </section>
     </section>
+
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <button type="button" class="mobile-nav-item active" data-page="todayPractice">Today</button>
+      <button type="button" class="mobile-nav-item" data-page="rolePlay">Role</button>
+      <button type="button" class="mobile-nav-item" data-page="aiChat">Chat</button>
+      <button type="button" class="mobile-nav-item" data-page="review">Review</button>
+    </nav>
 
     <div class="feedback-modal" id="feedbackModal" hidden role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
       <button type="button" class="modal-backdrop" id="feedbackModalBackdrop" aria-label="Close feedback"></button>
@@ -169,89 +337,6 @@
         <div class="feedback-content modal-feedback-content" id="feedbackModalContent"></div>
       </section>
     </div>
-
-    <div class="chat-modal" id="chatModal" hidden role="dialog" aria-modal="true" aria-labelledby="chatModalTitle">
-      <button type="button" class="modal-backdrop" id="chatModalBackdrop" aria-label="Close AI chat"></button>
-      <section class="chat-panel" tabindex="-1">
-        <div class="modal-header">
-          <div>
-            <span class="label">Daily AI chat</span>
-            <h2 id="chatModalTitle">Practice natural English</h2>
-            <p class="muted" id="chatStatus">Chat with your coach. Use text or voice input, then listen or read the reply.</p>
-          </div>
-          <button type="button" class="secondary-button compact-button" id="closeChat">Close</button>
-        </div>
-        <div class="chat-toolbar">
-          <label><input type="radio" name="chatInputMode" value="text" checked> Text input</label>
-          <label><input type="radio" name="chatInputMode" value="voice"> Voice input</label>
-          <label><input type="radio" name="chatOutputMode" value="text" checked> Text output</label>
-          <label><input type="radio" name="chatOutputMode" value="voice"> Voice output</label>
-          <button type="button" class="secondary-button compact-button" id="clearChat">Clear chat</button>
-        </div>
-        <div class="chat-messages" id="chatMessages" aria-live="polite"></div>
-        <div class="chat-input-row">
-          <button type="button" class="secondary-button" id="chatMic">Speak</button>
-          <textarea id="chatInput" rows="3" placeholder="Type in English, or switch to Voice input and speak..."></textarea>
-          <button type="button" class="primary-button" id="sendChat">Send</button>
-        </div>
-      </section>
-    </div>
-
-    <section class="vocabulary-section" aria-label="Vocabulary practice">
-      <div class="panel-header">
-        <span class="label">Vocabulary</span>
-        <span class="muted" id="vocabCount">Loading words</span>
-      </div>
-      <div class="vocabulary-grid">
-        <form class="vocab-form" id="vocabForm">
-          <input id="vocabTerm" placeholder="Word or phrase">
-          <input id="vocabMeaning" placeholder="Chinese meaning">
-          <input id="vocabExample" placeholder="Speaking example sentence">
-          <input id="vocabTag" placeholder="Tag, e.g. Mexico / IELTS / daily">
-          <button type="submit" class="primary-button">Add to vocabulary</button>
-        </form>
-        <div class="review-box">
-          <div class="panel-header compact">
-            <span class="label">Today's review</span>
-            <button type="button" class="secondary-button" id="refreshVocabulary">Refresh</button>
-          </div>
-          <div class="review-list" id="reviewList"></div>
-        </div>
-        <div class="word-bank" id="wordBank"></div>
-      </div>
-    </section>
-
-    <section class="mistake-section" aria-label="Mistake book practice">
-      <div class="panel-header">
-        <span class="label">Mistake Book</span>
-        <span class="muted" id="mistakeCount">Loading mistakes</span>
-      </div>
-      <div class="mistake-grid">
-        <form class="mistake-form" id="mistakeForm">
-          <textarea id="mistakeOriginal" rows="3" placeholder="Original sentence"></textarea>
-          <textarea id="mistakeImproved" rows="3" placeholder="Improved sentence"></textarea>
-          <input id="mistakeType" placeholder="Error type, e.g. grammar / logic / natural expression">
-          <input id="mistakeNote" placeholder="Short note">
-          <button type="submit" class="primary-button">Add mistake</button>
-        </form>
-        <div class="review-box">
-          <div class="panel-header compact">
-            <span class="label">Mistakes due today</span>
-            <button type="button" class="secondary-button" id="refreshMistakes">Refresh</button>
-          </div>
-          <div class="review-list" id="mistakeReviewList"></div>
-        </div>
-        <div class="mistake-bank" id="mistakeBank"></div>
-      </div>
-    </section>
-
-    <section class="history-section" aria-label="Saved sessions">
-      <div class="panel-header">
-        <span class="label">Recent sessions</span>
-        <button type="button" class="secondary-button" id="refreshHistory">Refresh</button>
-      </div>
-      <div class="history-list" id="historyList"></div>
-    </section>
   </main>
   <script src="/app.js"></script>
 </body>

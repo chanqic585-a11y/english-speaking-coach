@@ -17,6 +17,7 @@
   chatRecognition: null,
   dictationRecognition: null,
   activeDictationTarget: null,
+  voiceCaptureTranscript: '',
   chatMessages: [],
   feedbackAnswer: '',
   feedbackFollowupQuestion: '',
@@ -88,6 +89,7 @@ const elements = {
   recordButton: document.querySelector('#recordButton'),
   recordingStatus: document.querySelector('#recordingStatus'),
   recordingPlayback: document.querySelector('#recordingPlayback'),
+  quickTranscriptVoice: document.querySelector('#quickTranscriptVoice'),
   feedbackModal: document.querySelector('#feedbackModal'),
   feedbackModalPanel: document.querySelector('#feedbackModal .modal-panel'),
   feedbackModalBackdrop: document.querySelector('#feedbackModalBackdrop'),
@@ -122,7 +124,18 @@ const elements = {
   sendFollowupAnswer: document.querySelector('#sendFollowupAnswer'),
   requestSceneFeedback: document.querySelector('#requestSceneFeedback'),
   clearFollowups: document.querySelector('#clearFollowups'),
-  followupCoaching: document.querySelector('#followupCoaching')
+  followupCoaching: document.querySelector('#followupCoaching'),
+  voiceCaptureModal: document.querySelector('#voiceCaptureModal'),
+  voiceCapturePanel: document.querySelector('#voiceCaptureModal .modal-panel'),
+  voiceCaptureBackdrop: document.querySelector('#voiceCaptureBackdrop'),
+  closeVoiceCapture: document.querySelector('#closeVoiceCapture'),
+  voiceCaptureTitle: document.querySelector('#voiceCaptureTitle'),
+  voiceCapturePrompt: document.querySelector('#voiceCapturePrompt'),
+  voiceCaptureStatus: document.querySelector('#voiceCaptureStatus'),
+  voiceCaptureTranscript: document.querySelector('#voiceCaptureTranscript'),
+  stopVoiceCapture: document.querySelector('#stopVoiceCapture'),
+  retryVoiceCapture: document.querySelector('#retryVoiceCapture'),
+  useVoiceCapture: document.querySelector('#useVoiceCapture')
 };
 
 let deferredInstallPrompt = null;
@@ -582,13 +595,28 @@ function startFeedbackFollowupVoiceInput() {
     button: document.querySelector('#feedbackFollowupVoice'),
     idleText: 'Record voice',
     listeningText: 'Listening... answer the follow-up question in English.',
-    readyText: 'Transcript ready. Edit it if needed, then send your follow-up answer.'
+    readyText: 'Transcript ready. Edit it if needed, then send your follow-up answer.',
+    title: 'Answer the follow-up',
+    prompt: 'Speak your answer. The live transcript appears below, then you can use it in the follow-up box.'
+  });
+}
+
+function startQuickTranscriptVoiceInput() {
+  startDictation({
+    input: elements.answerInput,
+    status: elements.recordingStatus,
+    button: elements.quickTranscriptVoice,
+    idleText: 'Voice transcript',
+    listeningText: 'Listening... speak your answer and watch the live transcript.',
+    readyText: 'Transcript ready. Edit it if needed, then tap Get Feedback.',
+    title: 'Practice transcript',
+    prompt: 'Use this for quick voice-to-text. For audio-based feedback, use the large Record button instead.'
   });
 }
 
 function openFeedbackModal() {
   elements.feedbackModal.hidden = false;
-  document.body.classList.add('modal-open');
+  syncModalOpenState();
   window.requestAnimationFrame(() => elements.feedbackModalPanel.focus());
 }
 
@@ -596,9 +624,9 @@ function closeFeedbackModal() {
   if (state.isShadowRecording) {
     stopShadowingRecording();
   }
-  stopActiveDictation();
+  closeVoiceCaptureModal({ keepTranscript: false });
   elements.feedbackModal.hidden = true;
-  document.body.classList.remove('modal-open');
+  syncModalOpenState();
 }
 
 function renderFeedbackLoading() {
@@ -875,7 +903,72 @@ function stopActiveDictation() {
   state.activeDictationTarget = null;
 }
 
-function startDictation({ input, status, button, idleText = 'Record voice', listeningText, readyText }) {
+function setVoiceCaptureStatus(message, mode = '') {
+  setVoiceStatus(elements.voiceCaptureStatus, message, mode);
+}
+
+function syncModalOpenState() {
+  const feedbackOpen = elements.feedbackModal && !elements.feedbackModal.hidden;
+  const voiceOpen = elements.voiceCaptureModal && !elements.voiceCaptureModal.hidden;
+  document.body.classList.toggle('modal-open', Boolean(feedbackOpen || voiceOpen));
+}
+
+function openVoiceCaptureModal({ title, prompt }) {
+  elements.voiceCaptureTitle.textContent = title || 'Speak in English';
+  elements.voiceCapturePrompt.textContent = prompt || 'Watch the live transcript, then use it when it looks right.';
+  elements.voiceCaptureModal.hidden = false;
+  syncModalOpenState();
+  window.requestAnimationFrame(() => elements.voiceCapturePanel.focus());
+}
+
+function closeVoiceCaptureModal({ keepTranscript = false } = {}) {
+  stopActiveDictation();
+  if (!keepTranscript) {
+    state.voiceCaptureTranscript = '';
+    elements.voiceCaptureTranscript.value = '';
+  }
+  elements.voiceCaptureModal.hidden = true;
+  syncModalOpenState();
+}
+
+function finishVoiceCapture() {
+  if (state.dictationRecognition) {
+    try { state.dictationRecognition.stop(); } catch {}
+  }
+}
+
+function retryVoiceCapture() {
+  const target = state.activeDictationTarget;
+  if (!target) return;
+  if (state.dictationRecognition) {
+    stopActiveDictation();
+  }
+  startDictation(target);
+}
+
+function useVoiceCaptureTranscript() {
+  const target = state.activeDictationTarget;
+  const transcript = elements.voiceCaptureTranscript.value.trim();
+  if (!target || !target.input || !transcript) {
+    setVoiceCaptureStatus('No transcript yet. Speak again or type directly in the original box.', 'issue');
+    return;
+  }
+  target.input.value = transcript;
+  setVoiceStatus(target.status, target.readyText || 'Transcript ready. Review it, then continue.', 'ready');
+  target.input.focus();
+  closeVoiceCaptureModal({ keepTranscript: false });
+}
+
+function startDictation({
+  input,
+  status,
+  button,
+  idleText = 'Record voice',
+  listeningText,
+  readyText,
+  title = 'Speak in English',
+  prompt = 'Watch the live transcript, then use it when it looks right.'
+}) {
   if (!input) return;
   const Recognition = getSpeechRecognition();
   if (!Recognition) {
@@ -883,7 +976,7 @@ function startDictation({ input, status, button, idleText = 'Record voice', list
     return;
   }
   if (state.dictationRecognition) {
-    stopActiveDictation();
+    finishVoiceCapture();
     return;
   }
 
@@ -891,39 +984,63 @@ function startDictation({ input, status, button, idleText = 'Record voice', list
   recognition.lang = 'en-US';
   recognition.interimResults = true;
   recognition.continuous = false;
-  state.activeDictationTarget = { button, idleText };
+  state.voiceCaptureTranscript = '';
+  state.activeDictationTarget = { input, status, button, idleText, listeningText, readyText, title, prompt };
+  elements.voiceCaptureTranscript.value = '';
+  elements.useVoiceCapture.disabled = true;
+  elements.stopVoiceCapture.disabled = false;
+  elements.retryVoiceCapture.disabled = true;
+  openVoiceCaptureModal({ title, prompt });
 
   recognition.onresult = event => {
     let text = '';
     for (let index = 0; index < event.results.length; index += 1) {
       text += event.results[index][0]?.transcript || '';
     }
-    input.value = text.trim();
-    setVoiceStatus(status, 'Transcribing... keep speaking or wait for the final text.', 'listening');
+    state.voiceCaptureTranscript = text.trim();
+    elements.voiceCaptureTranscript.value = state.voiceCaptureTranscript;
+    elements.useVoiceCapture.disabled = !state.voiceCaptureTranscript;
+    setVoiceCaptureStatus('Transcribing... keep speaking or wait for the final text.', 'listening');
+    setVoiceStatus(status, 'Listening in the voice capture window...', 'listening');
   };
   recognition.onend = () => {
     state.dictationRecognition = null;
     setButtonRecording(button, false, 'Stop', idleText);
-    state.activeDictationTarget = null;
+    elements.stopVoiceCapture.disabled = true;
+    elements.retryVoiceCapture.disabled = false;
+    elements.useVoiceCapture.disabled = !elements.voiceCaptureTranscript.value.trim();
+    setVoiceCaptureStatus(
+      elements.voiceCaptureTranscript.value.trim()
+        ? 'Transcript ready. Edit it here if needed, then tap Use transcript.'
+        : 'No transcript captured. Try again, speak closer to the mic, or type instead.',
+      elements.voiceCaptureTranscript.value.trim() ? 'ready' : 'issue'
+    );
     setVoiceStatus(
       status,
-      input.value.trim() ? readyText : 'No transcript captured. Try again, speak closer to the mic, or type instead.',
-      input.value.trim() ? 'ready' : 'issue'
+      elements.voiceCaptureTranscript.value.trim()
+        ? 'Transcript ready in the popup. Use it when it looks right.'
+        : 'No transcript captured. Try again or type instead.',
+      elements.voiceCaptureTranscript.value.trim() ? 'ready' : 'issue'
     );
-    input.focus();
   };
   recognition.onerror = event => {
+    setVoiceCaptureStatus(`Voice input issue: ${event.error || 'unavailable'}. Try again or type instead.`, 'issue');
     setVoiceStatus(status, `Voice input issue: ${event.error || 'unavailable'}. Try again or type instead.`, 'issue');
   };
 
   try {
     state.dictationRecognition = recognition;
     setButtonRecording(button, true, 'Stop', idleText);
-    setVoiceStatus(status, listeningText, 'listening');
+    setVoiceCaptureStatus(listeningText, 'listening');
+    setVoiceStatus(status, 'Listening in the voice capture window...', 'listening');
     recognition.start();
   } catch {
     state.dictationRecognition = null;
     setButtonRecording(button, false, 'Stop', idleText);
+    elements.stopVoiceCapture.disabled = true;
+    elements.retryVoiceCapture.disabled = false;
+    elements.useVoiceCapture.disabled = true;
+    setVoiceCaptureStatus('Voice input could not start in this browser. Please type instead.', 'issue');
     setVoiceStatus(status, 'Voice input could not start in this browser. Please type instead.', 'issue');
   }
 }
@@ -1328,7 +1445,9 @@ function startRoleOpeningVoiceInput() {
     button: elements.roleOpeningVoice,
     idleText: 'Record voice',
     listeningText: 'Listening... answer the role opening in English.',
-    readyText: 'Transcript ready. Edit it if needed, then tap Start scene.'
+    readyText: 'Transcript ready. Edit it if needed, then tap Start scene.',
+    title: 'Role opening reply',
+    prompt: 'Answer the role in English. Use the transcript when it sounds right, then start the scene.'
   });
 }
 
@@ -1339,7 +1458,9 @@ function startFollowupVoiceInput() {
     button: elements.followupVoice,
     idleText: 'Record voice',
     listeningText: 'Listening... reply to the AI role in one or two sentences.',
-    readyText: 'Transcript ready. Edit it if needed, then tap Send scene reply.'
+    readyText: 'Transcript ready. Edit it if needed, then tap Send scene reply.',
+    title: 'Scene reply',
+    prompt: 'Reply to the AI role. Use the transcript when it looks right, then send the scene reply.'
   });
 }
 
@@ -1679,7 +1800,9 @@ function startChatVoiceInput() {
     button: elements.chatMic,
     idleText: 'Record voice',
     listeningText: 'Listening... speak one or two English sentences.',
-    readyText: 'Transcript ready. Edit it if needed, then tap Send to AI.'
+    readyText: 'Transcript ready. Edit it if needed, then tap Send to AI.',
+    title: 'Chat message',
+    prompt: 'Speak your message to the AI coach. Use the transcript when it looks right, then send it.'
   });
 }
 
@@ -1694,11 +1817,21 @@ function clearChat() {
 }
 
 document.querySelector('#requestFeedback').addEventListener('click', requestFeedback);
+elements.quickTranscriptVoice?.addEventListener('click', startQuickTranscriptVoiceInput);
 elements.copyPhoneUrl.addEventListener('click', copyPhoneUrl);
 elements.installApp?.addEventListener('click', installApp);
 elements.openFeedbackModal.addEventListener('click', openFeedbackModal);
 elements.closeFeedbackModal.addEventListener('click', closeFeedbackModal);
 elements.feedbackModalBackdrop.addEventListener('click', closeFeedbackModal);
+elements.closeVoiceCapture.addEventListener('click', () => closeVoiceCaptureModal({ keepTranscript: false }));
+elements.voiceCaptureBackdrop.addEventListener('click', () => closeVoiceCaptureModal({ keepTranscript: false }));
+elements.stopVoiceCapture.addEventListener('click', finishVoiceCapture);
+elements.retryVoiceCapture.addEventListener('click', retryVoiceCapture);
+elements.useVoiceCapture.addEventListener('click', useVoiceCaptureTranscript);
+elements.voiceCaptureTranscript.addEventListener('input', () => {
+  state.voiceCaptureTranscript = elements.voiceCaptureTranscript.value.trim();
+  elements.useVoiceCapture.disabled = !state.voiceCaptureTranscript;
+});
 elements.feedbackModalContent.addEventListener('click', event => {
   if (event.target?.id === 'toggleShadowingRecording') {
     toggleShadowingRecording();
@@ -1726,6 +1859,10 @@ elements.feedbackContent.addEventListener('click', event => {
   }
 });
 document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !elements.voiceCaptureModal.hidden) {
+    closeVoiceCaptureModal({ keepTranscript: false });
+    return;
+  }
   if (event.key === 'Escape' && !elements.feedbackModal.hidden) {
     closeFeedbackModal();
   }

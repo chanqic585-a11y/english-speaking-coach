@@ -513,6 +513,24 @@ button.recording {
   color: var(--color-danger);
 }
 
+.voice-capture-modal {
+  z-index: 80;
+}
+
+.voice-capture-panel {
+  max-width: 620px;
+}
+
+.voice-capture-panel textarea {
+  min-height: 180px;
+  background: var(--color-surface-soft);
+  font-size: var(--font-size-base);
+}
+
+.voice-capture-panel .practice-actions {
+  margin-top: var(--space-4);
+}
+
 .voice-lab {
   display: grid;
   gap: var(--space-3);

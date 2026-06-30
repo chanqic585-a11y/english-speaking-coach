@@ -94,6 +94,7 @@
             </div>
 
             <div class="practice-actions next-actions mission-actions">
+              <button type="button" class="secondary-button" id="quickTranscriptVoice">Voice transcript</button>
               <button type="button" class="primary-button" id="requestFeedback">Get Feedback</button>
               <button type="button" class="secondary-button" id="clearAnswer">Clear</button>
             </div>
@@ -335,6 +336,27 @@
         </div>
         <div class="modal-summary" id="feedbackModalSummary"></div>
         <div class="feedback-content modal-feedback-content" id="feedbackModalContent"></div>
+      </section>
+    </div>
+
+    <div class="feedback-modal voice-capture-modal" id="voiceCaptureModal" hidden role="dialog" aria-modal="true" aria-labelledby="voiceCaptureTitle">
+      <button type="button" class="modal-backdrop" id="voiceCaptureBackdrop" aria-label="Close voice capture"></button>
+      <section class="modal-panel voice-capture-panel" tabindex="-1">
+        <div class="modal-header">
+          <div>
+            <span class="label">Voice capture</span>
+            <h2 id="voiceCaptureTitle">Speak in English</h2>
+            <p class="muted" id="voiceCapturePrompt">Watch the live transcript, then use it when it looks right.</p>
+          </div>
+          <button type="button" class="secondary-button compact-button" id="closeVoiceCapture">Close</button>
+        </div>
+        <p class="voice-step-status" id="voiceCaptureStatus">Ready to listen.</p>
+        <textarea id="voiceCaptureTranscript" rows="6" placeholder="Live transcript will appear here while you speak..."></textarea>
+        <div class="practice-actions next-actions">
+          <button type="button" class="secondary-button" id="stopVoiceCapture">Stop</button>
+          <button type="button" class="secondary-button" id="retryVoiceCapture">Try again</button>
+          <button type="button" class="primary-button" id="useVoiceCapture">Use transcript</button>
+        </div>
       </section>
     </div>
   </main>

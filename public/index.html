@@ -71,33 +71,86 @@
               <button type="button" class="secondary-button compact-button" id="loadTopic">New scenario</button>
             </div>
 
-            <div class="mission-prompt">
-              <span class="mission-tag">Scene / Question</span>
-              <h2 id="promptText">Loading today's prompt...</h2>
-              <p class="sentence-frame" id="sentenceFrame"></p>
+            <div class="today-stepper" aria-label="Today practice steps">
+              <span class="today-step-pill active" data-today-step-dot="1">1 Goal</span>
+              <span class="today-step-pill" data-today-step-dot="2">2 Record</span>
+              <span class="today-step-pill" data-today-step-dot="3">3 Feedback</span>
+              <span class="today-step-pill" data-today-step-dot="4">4 Shadowing</span>
+              <span class="today-step-pill" data-today-step-dot="5">5 Save</span>
             </div>
 
-            <span class="mission-tag">Useful expressions</span>
-            <div class="phrase-bank" id="phraseBank" aria-label="Phrase bank"></div>
-
-            <div class="transcript-card" aria-label="Record and transcript">
-              <label class="field-label" for="answerInput">Transcript</label>
-              <p class="voice-step-status" id="recordingStatus">Step 1: tap Record, speak naturally, then edit the transcript before feedback.</p>
-              <div class="recording-actions">
-                <button type="button" class="record-button" id="recordButton">
-                  <span>Record</span>
-                  <small>Hold to Speak</small>
-                </button>
+            <section class="practice-step active" data-today-step-panel="1" aria-label="Step 1 choose goal">
+              <span class="label">Step 1: Choose goal</span>
+              <div class="mission-prompt">
+                <span class="mission-tag">Scene / Question</span>
+                <h2 id="promptText">Loading today's prompt...</h2>
+                <p class="sentence-frame" id="sentenceFrame"></p>
               </div>
-              <audio id="recordingPlayback" controls hidden></audio>
-              <textarea id="answerInput" rows="9" placeholder="Your spoken transcript will appear here. You can also type your answer directly..."></textarea>
-            </div>
+              <span class="mission-tag">Useful expressions</span>
+              <div class="phrase-bank" id="phraseBank" aria-label="Phrase bank"></div>
+              <div class="practice-actions next-actions mission-actions">
+                <button type="button" class="primary-button" id="startTodayAnswer">Start answer</button>
+              </div>
+            </section>
 
-            <div class="practice-actions next-actions mission-actions">
-              <button type="button" class="secondary-button" id="quickTranscriptVoice">Voice transcript</button>
-              <button type="button" class="primary-button" id="requestFeedback">Get Feedback</button>
-              <button type="button" class="secondary-button" id="clearAnswer">Clear</button>
-            </div>
+            <section class="practice-step" data-today-step-panel="2" aria-label="Step 2 record answer" hidden>
+              <span class="label">Step 2: Record answer</span>
+              <div class="transcript-card" aria-label="Record and transcript">
+                <label class="field-label" for="answerInput">Transcript</label>
+                <p class="voice-step-status" id="recordingStatus">Tap Record, speak naturally, then edit the transcript before feedback.</p>
+                <div class="recording-actions">
+                  <button type="button" class="record-button" id="recordButton">
+                    <span>Record</span>
+                    <small>Hold to Speak</small>
+                  </button>
+                </div>
+                <audio id="recordingPlayback" controls hidden></audio>
+                <textarea id="answerInput" rows="9" placeholder="Your spoken transcript will appear here. You can also type your answer directly..."></textarea>
+              </div>
+              <div class="practice-actions next-actions mission-actions">
+                <button type="button" class="secondary-button" id="quickTranscriptVoice">Voice transcript</button>
+                <button type="button" class="secondary-button" id="clearAnswer">Clear</button>
+                <button type="button" class="primary-button" id="continueToFeedback" disabled>Next: feedback</button>
+              </div>
+            </section>
+
+            <section class="practice-step" data-today-step-panel="3" aria-label="Step 3 get feedback" hidden>
+              <span class="label">Step 3: Get feedback</span>
+              <div class="step-focus-box">
+                <h3>Ready for AI feedback</h3>
+                <p>Check the transcript once, then ask Gemini for grammar, logic, pronunciation, fluency, and a repeat script.</p>
+              </div>
+              <div class="practice-actions next-actions mission-actions">
+                <button type="button" class="primary-button" id="requestFeedback">Get Feedback</button>
+                <button type="button" class="secondary-button" id="backToRecord">Edit transcript</button>
+              </div>
+            </section>
+
+            <section class="practice-step" data-today-step-panel="4" aria-label="Step 4 shadowing" hidden>
+              <span class="label">Step 4: Shadowing</span>
+              <div class="step-focus-box">
+                <h3>Repeat the natural version aloud</h3>
+                <p>Open the latest feedback, read the repeat script, and record shadowing inside the feedback window.</p>
+              </div>
+              <div class="practice-actions next-actions mission-actions">
+                <button type="button" class="primary-button" id="todayOpenFeedback">Open feedback & shadowing</button>
+                <button type="button" class="secondary-button" id="continueToSave">Next: save takeaway</button>
+              </div>
+            </section>
+
+            <section class="practice-step" data-today-step-panel="5" aria-label="Step 5 save mistake or finish" hidden>
+              <span class="label">Step 5: Save mistake / Finish</span>
+              <div class="reflection-box">
+                <span class="label">Save one useful takeaway</span>
+                <input id="grammarNote" placeholder="One grammar point to remember">
+                <input id="logicNote" placeholder="One logic point to remember">
+                <input id="expressionNote" placeholder="One reusable expression">
+                <button type="button" class="secondary-button" id="saveSession">Save today's review</button>
+              </div>
+              <div class="practice-actions next-actions mission-actions">
+                <button type="button" class="primary-button" id="finishTodayPractice">Finish practice</button>
+              </div>
+            </section>
           </section>
 
           <section class="feedback-preview-card" aria-label="AI feedback preview">
@@ -117,14 +170,6 @@
                 <h2>Your feedback will appear here</h2>
                 <p>Get pronunciation, fluency, a natural version, and a repeat script after you submit.</p>
               </div>
-            </div>
-
-            <div class="reflection-box">
-              <span class="label">Save one useful takeaway</span>
-              <input id="grammarNote" placeholder="One grammar point to remember">
-              <input id="logicNote" placeholder="One logic point to remember">
-              <input id="expressionNote" placeholder="One reusable expression">
-              <button type="button" class="secondary-button" id="saveSession">Save today's review</button>
             </div>
           </section>
         </div>
@@ -360,6 +405,6 @@
       </section>
     </div>
   </main>
-  <script src="/app.js"></script>
+  <script type="module" src="/main.js"></script>
 </body>
 </html>

@@ -1,9 +1,17 @@
-const CACHE_NAME = 'english-speaking-coach-v1';
+const CACHE_NAME = 'english-speaking-coach-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/styles.css',
   '/app.js',
+  '/state.js',
+  '/api.js',
+  '/recording.js',
+  '/feedback.js',
+  '/roleplay.js',
+  '/chat.js',
+  '/review.js',
+  '/main.js',
   '/manifest.webmanifest',
   '/icons/icon.svg',
   '/icons/icon-192.png',
